@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Check, CreditCard, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import PageHeader from '@/components/common/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateUserSubscription } from '@/lib/data/users';
 
-// Import loadStripe para a integração real com o Stripe
+// Import Stripe for the integration
 import { loadStripe } from '@stripe/stripe-js';
 
 const Subscription = () => {
@@ -25,12 +26,11 @@ const Subscription = () => {
   const [stripeLoaded, setStripeLoaded] = useState(false);
   const [stripePromise, setStripePromise] = useState<any>(null);
   
-  // Inicializa o Stripe quando o componente é montado
+  // Initialize Stripe when the component is mounted
   useEffect(() => {
-    // Initialize Stripe com sua chave publicável
     const loadStripeInstance = async () => {
       try {
-        // Chave publicável (pode ser incluída diretamente no código)
+        // Use your public key
         const stripeInstance = await loadStripe('pk_live_51RDkntCAibRDOVWbEJlgPeVZ8Wf9cSQPZPTzp9ZLULrQbkFDH9LJcBzZLhocK9Rpp9uDzYj7iZKvIlRf4OhDZAr300U8MglfwQ');
         setStripePromise(stripeInstance);
         setStripeLoaded(true);
@@ -47,12 +47,12 @@ const Subscription = () => {
     loadStripeInstance();
   }, [toast]);
   
-  // Função para iniciar o checkout do Stripe para uma assinatura real
+  // Function to create Stripe checkout session and redirect to checkout
   const handleSubscribe = async (plan: 'premium' | 'enterprise') => {
     setIsLoading(true);
     
     try {
-      if (!stripeLoaded) {
+      if (!stripeLoaded || !stripePromise) {
         toast({
           title: 'Stripe não inicializado',
           description: 'Por favor, aguarde o carregamento do Stripe ou recarregue a página.',
@@ -62,108 +62,136 @@ const Subscription = () => {
         return;
       }
       
-      // IDs dos produtos fornecidos pelo usuário
+      // Product IDs provided by user
       const productId = plan === 'premium' 
         ? 'prod_S81I7orN9sLjzm'  // Premium plan
         : 'prod_S81KuZeZpl9bPM'; // Enterprise plan
       
-      // Para uma integração real com Stripe, normalmente você enviaria uma solicitação para
-      // um endpoint de API no back-end que criaria uma sessão de checkout
-      // Como estamos em modo de demonstração, vamos simular isso:
+      // Direct checkout implementation with Stripe
+      const stripe = await stripePromise;
       
-      try {
-        const stripe = await stripePromise;
-        
-        // Redirecionamento direto para o Stripe Checkout (isso é um mock, no mundo real você teria um backend para criar a sessão)
-        toast({
-          title: 'Redirecionando para o checkout',
-          description: 'Você será redirecionado para a página de pagamento do Stripe.',
-        });
-        
-        // Na implementação real, você usaria uma API backend para criar a sessão
-        // e retornar sessionId para usar com stripe.redirectToCheckout()
-        
-        // Simulação para o ambiente de demonstração
-        setTimeout(() => {
-          if (user) {
-            const oneYearLater = new Date();
-            oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
-            
-            const result = updateUserSubscription(user.id, true, oneYearLater);
-            
-            if (result) {
-              toast({
-                title: 'Assinatura ativada',
-                description: 'Sua assinatura foi ativada com sucesso! (Simulação)',
-              });
-              
-              // Recarrega a página para atualizar o estado de autenticação
-              window.location.href = '/subscription';
-            }
-          }
-          setIsLoading(false);
-        }, 2000);
-        
-      } catch (error) {
-        console.error('Erro no checkout do Stripe:', error);
-        toast({
-          title: 'Erro no checkout',
-          description: 'Houve um problema ao iniciar o checkout.',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
+      // Create a checkout session through the browser
+      const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer pk_live_51RDkntCAibRDOVWbEJlgPeVZ8Wf9cSQPZPTzp9ZLULrQbkFDH9LJcBzZLhocK9Rpp9uDzYj7iZKvIlRf4OhDZAr300U8MglfwQ`,
+        },
+        body: new URLSearchParams({
+          'success_url': `${window.location.origin}/subscription?success=true`,
+          'cancel_url': `${window.location.origin}/subscription?canceled=true`,
+          'mode': 'subscription',
+          'line_items[0][price_data][currency]': 'brl',
+          'line_items[0][price_data][product]': productId,
+          'line_items[0][price_data][recurring][interval]': 'month',
+          'line_items[0][price_data][unit_amount]': plan === 'premium' ? '1500' : '9900',
+          'line_items[0][quantity]': '1',
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Erro ao criar sessão: ${errorData.error?.message || 'Erro desconhecido'}`);
       }
+      
+      const session = await response.json();
+      
+      // Redirect to checkout
+      await stripe.redirectToCheckout({
+        sessionId: session.id,
+      });
       
     } catch (error) {
       console.error('Subscription error:', error);
       toast({
         title: 'Erro na assinatura',
-        description: 'Ocorreu um erro ao processar sua assinatura.',
+        description: 'Ocorreu um erro ao processar sua assinatura. Por favor, tente novamente.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+    }
+  };
+
+  // Function to check subscription status
+  const checkSubscriptionStatus = async () => {
+    try {
+      if (!user) return;
+      
+      // In a real implementation, you would call your backend API to verify the subscription status
+      const response = await fetch('https://api.stripe.com/v1/customers', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer pk_live_51RDkntCAibRDOVWbEJlgPeVZ8Wf9cSQPZPTzp9ZLULrQbkFDH9LJcBzZLhocK9Rpp9uDzYj7iZKvIlRf4OhDZAr300U8MglfwQ`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao verificar status da assinatura');
+      }
+      
+      // Process the response to update user subscription status
+      // This is a simplified example - in a real app, you would need to check if the user has an active subscription
+      
+      // For demo purposes, we're mocking this behavior
+      const urlParams = new URLSearchParams(window.location.search);
+      const success = urlParams.get('success');
+      
+      if (success === 'true' && user) {
+        const oneYearLater = new Date();
+        oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+        updateUserSubscription(user.id, true, oneYearLater);
+        
+        toast({
+          title: 'Assinatura ativada',
+          description: 'Sua assinatura foi ativada com sucesso!',
+        });
+        
+        // Remove query parameters from URL
+        window.history.replaceState(null, '', '/subscription');
+      }
+      
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+    }
+  };
+  
+  // Function to open Stripe customer portal for subscription management
+  const openCustomerPortal = async () => {
+    setIsLoading(true);
+    
+    try {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      
+      // In a real implementation, you would call your backend API to create a portal session
+      // and redirect the user to the portal URL
+      
+      // For demonstration, we'll simulate this
+      setTimeout(() => {
+        toast({
+          title: 'Portal do cliente',
+          description: 'O portal de gerenciamento de assinatura seria aberto aqui.',
+        });
+        setIsLoading(false);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao abrir o portal do cliente.',
         variant: 'destructive',
       });
       setIsLoading(false);
     }
   };
   
-  // For development/demo purposes, provide a fallback method using our mock
-  const handleMockSubscribe = async (plan: 'premium' | 'enterprise') => {
-    setIsLoading(true);
-    
-    try {
-      setTimeout(() => {
-        if (user) {
-          const oneYearLater = new Date();
-          oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
-          
-          const result = updateUserSubscription(user.id, true, oneYearLater);
-          
-          if (result) {
-            toast({
-              title: 'Assinatura ativada',
-              description: 'Sua assinatura foi ativada com sucesso!',
-            });
-            
-            // Force page reload to update user context
-            window.location.href = '/';
-          }
-        }
-        setIsLoading(false);
-      }, 2000);
-      
-      toast({
-        title: 'Processando pagamento',
-        description: 'Simulando processamento de pagamento (modo de demonstração)...',
-      });
-    } catch (error) {
-      console.error('Subscription error:', error);
-      toast({
-        title: 'Erro na assinatura',
-        description: 'Ocorreu um erro ao processar sua assinatura.',
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-    }
-  };
+  // Check subscription status on component mount and when URL params change
+  useEffect(() => {
+    checkSubscriptionStatus();
+  }, [user]);
   
   return (
     <div>
@@ -265,13 +293,13 @@ const Subscription = () => {
           </CardContent>
           <CardFooter>
             {user?.isSubscribed ? (
-              <Button className="w-full" variant="outline" disabled>
-                Plano Atual
+              <Button className="w-full" variant="outline" onClick={openCustomerPortal} disabled={isLoading}>
+                {isLoading ? 'Processando...' : 'Gerenciar Assinatura'}
               </Button>
             ) : (
               <Button 
                 className="w-full" 
-                onClick={() => stripeLoaded ? handleSubscribe('premium') : handleMockSubscribe('premium')}
+                onClick={() => handleSubscribe('premium')}
                 disabled={isLoading}
               >
                 <CreditCard className="mr-2 h-4 w-4" />
@@ -323,14 +351,14 @@ const Subscription = () => {
           </CardContent>
           <CardFooter>
             {user?.isSubscribed ? (
-              <Button variant="outline" className="w-full" disabled>
-                Contate Vendas
+              <Button variant="outline" className="w-full" onClick={openCustomerPortal} disabled={isLoading}>
+                {isLoading ? 'Processando...' : 'Gerenciar Assinatura'}
               </Button>
             ) : (
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => stripeLoaded ? handleSubscribe('enterprise') : handleMockSubscribe('enterprise')}
+                onClick={() => handleSubscribe('enterprise')}
                 disabled={isLoading}
               >
                 {isLoading ? 'Processando...' : 'Assinar Plano Empresarial'}

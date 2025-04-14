@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { 
   BarChart, 
@@ -50,7 +49,7 @@ import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-// Estendendo o tipo jsPDF para incluir o método autoTable
+// Extending the jsPDF type to include the autoTable method
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -206,7 +205,7 @@ const Dashboard = () => {
       doc.setFontSize(14);
       doc.text('Desempenho de Veículos', 14, finalY3);
       
-      const performanceData = refuelingData.map(item => [
+      const performanceData = refuelingData.slice(0, 10).map(item => [
         item.date,
         `${item.km} km`,
         `${item.liters} L`,
