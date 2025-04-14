@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, CreditCard, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,24 +19,53 @@ import { updateUserSubscription } from '@/lib/data/users';
 const Subscription = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSubscribe = () => {
-    if (user) {
-      // In a real app, this would redirect to a payment gateway
-      const oneYearLater = new Date();
-      oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+  // Mock function to simulate Stripe payment processing
+  const handleSubscribe = async (plan: 'premium' | 'enterprise') => {
+    setIsLoading(true);
+    
+    try {
+      // Determine which product to use
+      const productId = plan === 'premium' 
+        ? 'prod_S81I7orN9sLjzm'  // Premium plan
+        : 'prod_S81KuZeZpl9bPM'; // Enterprise plan
       
-      const result = updateUserSubscription(user.id, true, oneYearLater);
+      // In a real implementation, this would call a Stripe checkout session
+      // Mock the behavior for now
+      setTimeout(() => {
+        if (user) {
+          // In a real app, this would redirect to a payment gateway
+          const oneYearLater = new Date();
+          oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+          
+          const result = updateUserSubscription(user.id, true, oneYearLater);
+          
+          if (result) {
+            toast({
+              title: 'Assinatura ativada',
+              description: 'Sua assinatura foi ativada com sucesso!',
+            });
+            
+            // Force page reload to update user context
+            window.location.href = '/';
+          }
+        }
+        setIsLoading(false);
+      }, 2000);
       
-      if (result) {
-        toast({
-          title: 'Assinatura ativada',
-          description: 'Sua assinatura foi ativada com sucesso!',
-        });
-        
-        // Force page reload to update user context
-        window.location.href = '/';
-      }
+      toast({
+        title: 'Processando pagamento',
+        description: 'Você será redirecionado para o Stripe em instantes...',
+      });
+    } catch (error) {
+      console.error('Subscription error:', error);
+      toast({
+        title: 'Erro na assinatura',
+        description: 'Ocorreu um erro ao processar sua assinatura.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
     }
   };
   
@@ -144,9 +173,13 @@ const Subscription = () => {
                 Plano Atual
               </Button>
             ) : (
-              <Button className="w-full" onClick={handleSubscribe}>
+              <Button 
+                className="w-full" 
+                onClick={() => handleSubscribe('premium')}
+                disabled={isLoading}
+              >
                 <CreditCard className="mr-2 h-4 w-4" />
-                Assinar Agora
+                {isLoading ? 'Processando...' : 'Assinar Agora'}
               </Button>
             )}
           </CardFooter>
@@ -193,9 +226,20 @@ const Subscription = () => {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full">
-              Contate Vendas
-            </Button>
+            {user?.isSubscribed ? (
+              <Button variant="outline" className="w-full" disabled>
+                Contate Vendas
+              </Button>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => handleSubscribe('enterprise')}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Processando...' : 'Assinar Plano Empresarial'}
+              </Button>
+            )}
           </CardFooter>
         </Card>
       </div>

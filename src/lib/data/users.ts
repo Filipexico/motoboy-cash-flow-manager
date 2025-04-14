@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { User } from '@/types';
 
 // Sample users data
-export const users: User[] = [
+export let users: User[] = [
   {
     id: uuidv4(),
     email: 'admin@example.com',
@@ -40,6 +40,8 @@ export const createUser = (email: string, name: string): User => {
   };
   
   users.push(newUser);
+  console.log(`User created: ${name} (${email})`);
+  console.log(`Total users: ${users.length}`);
   return newUser;
 };
 
@@ -68,4 +70,9 @@ export const makeUserAdmin = (userId: string, isAdmin: boolean): User | null => 
   };
   
   return users[userIndex];
+};
+
+// For debugging: list all users
+export const listAllUsers = (): User[] => {
+  return users;
 };

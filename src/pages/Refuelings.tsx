@@ -24,8 +24,11 @@ import { refuelings } from '@/lib/data/refuelings';
 import { vehicles } from '@/lib/data/vehicles';
 import RefuelingDialog from '@/components/refuelings/RefuelingDialog';
 import PdfExportButton from '@/components/common/PdfExportButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Refuelings = () => {
+  const { user } = useAuth();
+  
   // Helper function to get vehicle name by id
   const getVehicleName = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -41,15 +44,12 @@ const Refuelings = () => {
     { 
       header: 'Veículo', 
       accessor: 'vehicleId',
-      format: (vehicleId: string) => getVehicleName(vehicleId)
+      format: (value: string) => getVehicleName(value)
     },
     { 
       header: 'Distância (km)', 
-      accessor: 'custom',
-      format: (_, index: number) => {
-        const refueling = refuelings[index];
-        return (refueling.odometerEnd - refueling.odometerStart).toFixed(1);
-      }
+      accessor: 'distance',
+      format: (value: number) => value.toFixed(1)
     },
     { 
       header: 'Litros', 
@@ -58,12 +58,8 @@ const Refuelings = () => {
     },
     { 
       header: 'Rendimento (km/L)', 
-      accessor: 'custom2',
-      format: (_, index: number) => {
-        const refueling = refuelings[index];
-        const distance = refueling.odometerEnd - refueling.odometerStart;
-        return distance > 0 ? (distance / refueling.liters).toFixed(1) : '0';
-      }
+      accessor: 'efficiency',
+      format: (value: number) => value.toFixed(1)
     },
     { 
       header: 'Preço por Litro', 
@@ -77,6 +73,18 @@ const Refuelings = () => {
     },
   ];
 
+  // Prepare the data for PDF export with computed fields
+  const exportData = refuelings.map(refueling => {
+    const distance = refueling.odometerEnd - refueling.odometerStart;
+    const efficiency = refueling.liters > 0 ? distance / refueling.liters : 0;
+    
+    return {
+      ...refueling,
+      distance,
+      efficiency,
+    };
+  }).sort((a, b) => b.date.getTime() - a.date.getTime());
+
   return (
     <div>
       <PageHeader
@@ -84,12 +92,14 @@ const Refuelings = () => {
         description="Registre abastecimentos para analisar o consumo e custo dos seus veículos"
       >
         <div className="flex flex-col sm:flex-row gap-2">
-          <PdfExportButton 
-            data={refuelings.sort((a, b) => b.date.getTime() - a.date.getTime())}
-            columns={columns}
-            fileName="abastecimentos"
-            title="Relatório de Abastecimentos"
-          />
+          {user?.isSubscribed && (
+            <PdfExportButton 
+              data={exportData}
+              columns={columns}
+              fileName="abastecimentos"
+              title="Relatório de Abastecimentos"
+            />
+          )}
           <RefuelingDialog />
         </div>
       </PageHeader>

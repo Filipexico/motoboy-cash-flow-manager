@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -7,7 +7,8 @@ import {
   Trash, 
   Check, 
   X,
-  CreditCard
+  CreditCard,
+  RefreshCw
 } from 'lucide-react';
 import {
   Card,
@@ -29,11 +30,30 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import PageHeader from '@/components/common/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { users, makeUserAdmin, updateUserSubscription } from '@/lib/data/users';
+import { users, makeUserAdmin, updateUserSubscription, listAllUsers } from '@/lib/data/users';
 
 const Admin = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [allUsers, setAllUsers] = useState(users);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  useEffect(() => {
+    // Refresh users on component mount
+    setAllUsers(listAllUsers());
+  }, []);
+
+  const handleRefreshUsers = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setAllUsers(listAllUsers());
+      setIsRefreshing(false);
+      toast({
+        title: "Lista atualizada",
+        description: `${listAllUsers().length} usuários encontrados.`,
+      });
+    }, 1000);
+  };
   
   // Redirect if not admin (this is a backup, we also check in App.tsx routes)
   if (!user?.isAdmin) {
@@ -53,6 +73,7 @@ const Admin = () => {
         title: 'Status alterado',
         description: `Usuário ${result.name} ${!currentStatus ? 'promovido a administrador' : 'rebaixado de administrador'}.`,
       });
+      setAllUsers(listAllUsers()); // Refresh users
     }
   };
 
@@ -66,6 +87,7 @@ const Admin = () => {
         title: 'Assinatura alterada',
         description: `Assinatura de ${result.name} ${!currentStatus ? 'ativada' : 'cancelada'}.`,
       });
+      setAllUsers(listAllUsers()); // Refresh users
     }
   };
 
@@ -75,12 +97,20 @@ const Admin = () => {
         title="Administração"
         description="Gerencie usuários, assinaturas e configurações do sistema"
       >
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleRefreshUsers}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
           <Badge variant="outline" className="text-sm px-2 py-1">
-            {users.length} Usuário(s)
+            {allUsers.length} Usuário(s)
           </Badge>
           <Badge variant="outline" className="text-sm px-2 py-1">
-            {users.filter(u => u.isSubscribed).length} Assinante(s)
+            {allUsers.filter(u => u.isSubscribed).length} Assinante(s)
           </Badge>
         </div>
       </PageHeader>
@@ -106,7 +136,7 @@ const Admin = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((u) => (
+              {allUsers.map((u) => (
                 <TableRow key={u.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>

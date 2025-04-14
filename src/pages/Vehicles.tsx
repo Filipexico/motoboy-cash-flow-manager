@@ -22,8 +22,11 @@ import PageHeader from '@/components/common/PageHeader';
 import { vehicles } from '@/lib/data/vehicles';
 import VehicleDialog from '@/components/vehicles/VehicleDialog';
 import PdfExportButton from '@/components/common/PdfExportButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Vehicles = () => {
+  const { user } = useAuth();
+  
   const columns = [
     { header: 'Nome', accessor: 'name' },
     { header: 'Modelo', accessor: 'model' },
@@ -43,12 +46,14 @@ const Vehicles = () => {
         description="Gerencie seus veículos para controle de abastecimento e despesas"
       >
         <div className="flex flex-col sm:flex-row gap-2">
-          <PdfExportButton 
-            data={vehicles}
-            columns={columns}
-            fileName="veiculos"
-            title="Relatório de Veículos"
-          />
+          {user?.isSubscribed && (
+            <PdfExportButton 
+              data={vehicles}
+              columns={columns}
+              fileName="veiculos"
+              title="Relatório de Veículos"
+            />
+          )}
           <VehicleDialog />
         </div>
       </PageHeader>

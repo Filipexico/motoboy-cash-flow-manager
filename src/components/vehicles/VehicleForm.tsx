@@ -1,27 +1,29 @@
 
 import React from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { 
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { Vehicle } from '@/types';
+import { Button } from '@/components/ui/button';
+import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addVehicle } from '@/lib/data/vehicles';
 import { useToast } from '@/hooks/use-toast';
 
+// Define form schema with validation
 const vehicleFormSchema = z.object({
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  model: z.string().min(2, 'Modelo deve ter pelo menos 2 caracteres'),
-  year: z.coerce.number().min(1970, 'Ano deve ser maior que 1970').max(new Date().getFullYear() + 1),
-  licensePlate: z.string().min(5, 'Placa deve ter pelo menos 5 caracteres'),
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  model: z.string().min(2, "Modelo deve ter pelo menos 2 caracteres"),
+  year: z.coerce.number().min(1900, "Ano inválido").max(new Date().getFullYear() + 1, "Ano inválido"),
+  licensePlate: z.string().min(5, "Placa inválida"),
   active: z.boolean().default(true),
 });
 
@@ -44,35 +46,31 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ onSuccess }) => {
       active: true,
     },
   });
-  
-  const onSubmit = (data: VehicleFormValues) => {
-    try {
-      // Add the vehicle to our data store
-      addVehicle(data);
-      
-      // Show success toast
-      toast({
-        title: 'Veículo adicionado',
-        description: `${data.name} foi adicionado com sucesso.`,
-      });
-      
-      // Reset form
-      form.reset();
-      
-      // Call onSuccess callback if provided
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error) {
-      console.error('Error adding vehicle:', error);
-      toast({
-        title: 'Erro',
-        description: 'Ocorreu um erro ao adicionar o veículo.',
-        variant: 'destructive',
-      });
+
+  const onSubmit = (values: VehicleFormValues) => {
+    // Ensure all required fields are present (not optional)
+    const vehicleData: Omit<Vehicle, "id" | "createdAt"> = {
+      name: values.name,
+      model: values.model,
+      year: values.year,
+      licensePlate: values.licensePlate,
+      active: values.active,
+    };
+    
+    addVehicle(vehicleData);
+    
+    toast({
+      title: "Veículo adicionado",
+      description: `${values.name} foi cadastrado com sucesso!`,
+    });
+    
+    form.reset();
+    
+    if (onSuccess) {
+      onSuccess();
     }
   };
-  
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -81,9 +79,9 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ onSuccess }) => {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nome do Veículo</FormLabel>
+              <FormLabel>Nome</FormLabel>
               <FormControl>
-                <Input placeholder="ex: Minha Moto Principal" {...field} />
+                <Input placeholder="Nome do veículo" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -97,40 +95,42 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ onSuccess }) => {
             <FormItem>
               <FormLabel>Modelo</FormLabel>
               <FormControl>
-                <Input placeholder="ex: Honda CG 160" {...field} />
+                <Input placeholder="Modelo do veículo" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         
-        <FormField
-          control={form.control}
-          name="year"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Ano</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="ex: 2021" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="licensePlate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Placa</FormLabel>
-              <FormControl>
-                <Input placeholder="ex: ABC1234" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="year"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ano</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="licensePlate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Placa</FormLabel>
+                <FormControl>
+                  <Input placeholder="ABC-1234" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         
         <FormField
           control={form.control}
@@ -144,13 +144,15 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ onSuccess }) => {
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>Veículo Ativo</FormLabel>
+                <FormLabel>Ativo</FormLabel>
               </div>
             </FormItem>
           )}
         />
         
-        <Button type="submit" className="w-full">Salvar Veículo</Button>
+        <Button type="submit" className="w-full">
+          Adicionar Veículo
+        </Button>
       </form>
     </Form>
   );
