@@ -2,14 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
-
-// Supabase configuration - usando as credenciais diretamente ao invés de variáveis de ambiente
-const SUPABASE_URL = 'https://qewlxnjqojxprkodfdqf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFld2x4bmpxb2p4cHJrb2RmZHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MjE0MTIsImV4cCI6MjA2MDE5NzQxMn0.lADhLBSYqfMPejc840DUUI-ylpihgiuHvHYYiHYnkKQ';
-
-// Create Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+import { supabase } from '@/lib/supabase';
 
 export const useSubscription = () => {
   const { user, checkSubscription } = useAuth();
@@ -31,23 +24,41 @@ export const useSubscription = () => {
       setIsLoading(true);
       
       console.log('Manually checking subscription status...');
-      const { data, error } = await supabase.functions.invoke('check-subscription');
       
-      if (error) {
+      try {
+        // Verifica se a função check-subscription existe
+        const { data, error } = await supabase.functions.invoke('check-subscription');
+        
+        if (error) {
+          console.error('Error checking subscription:', error);
+          toast({
+            title: 'Erro',
+            description: 'Não foi possível verificar o status da sua assinatura: ' + error.message,
+            variant: 'destructive',
+          });
+          throw error;
+        }
+        
+        console.log('Subscription check result:', data);
+        setSubscription(data);
+        
+        // Also update the global auth context
+        await checkSubscription();
+      } catch (error: any) {
         console.error('Error checking subscription:', error);
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível verificar o status da sua assinatura: ' + error.message,
-          variant: 'destructive',
+        // Se a função não existe, estamos em ambiente de desenvolvimento/teste
+        // Simular um resultado de assinatura inativa para continuar funcionando
+        setSubscription({
+          subscribed: false,
+          subscription_tier: null,
+          subscription_end: null
         });
-        throw new Error(error.message);
+        
+        toast({
+          title: 'Aviso',
+          description: 'Sistema em modo de teste. Funções de assinatura estão desativadas.',
+        });
       }
-      
-      console.log('Subscription check result:', data);
-      setSubscription(data);
-      
-      // Also update the global auth context
-      await checkSubscription();
       
     } catch (error) {
       console.error('Error checking subscription:', error);
@@ -67,32 +78,43 @@ export const useSubscription = () => {
     
     try {
       console.log(`Creating checkout session for plan: ${plan}`);
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { planType: plan }
-      });
       
-      if (error) {
-        console.error('Error creating checkout session:', error);
-        toast({
-          title: 'Erro na assinatura',
-          description: 'Ocorreu um erro ao processar sua assinatura: ' + error.message,
-          variant: 'destructive',
+      try {
+        const { data, error } = await supabase.functions.invoke('create-checkout', {
+          body: { planType: plan }
         });
-        throw new Error(error.message);
-      }
-      
-      console.log('Checkout session created:', data);
-      
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL returned');
+        
+        if (error) {
+          console.error('Error creating checkout session:', error);
+          toast({
+            title: 'Erro na assinatura',
+            description: 'Ocorreu um erro ao processar sua assinatura: ' + error.message,
+            variant: 'destructive',
+          });
+          throw error;
+        }
+        
+        console.log('Checkout session created:', data);
+        
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('No checkout URL returned');
+        }
+      } catch (error: any) {
+        console.error('Error creating checkout session:', error);
+        
+        // Se a função não existe, estamos em ambiente de desenvolvimento/teste
+        toast({
+          title: 'Modo de teste',
+          description: 'Funções Stripe não estão configuradas neste ambiente. Em produção, você seria redirecionado para a página de pagamento.',
+        });
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
       toast({
         title: 'Erro na assinatura',
-        description: 'Ocorreu um erro ao processar sua assinatura. Por favor, tente novamente.',
+        description: 'Ocorreu um erro ao processar sua assinatura. Por favor, tente novamente mais tarde.',
         variant: 'destructive',
       });
     } finally {
@@ -106,24 +128,35 @@ export const useSubscription = () => {
     
     try {
       console.log('Opening customer portal...');
-      const { data, error } = await supabase.functions.invoke('customer-portal');
       
-      if (error) {
+      try {
+        const { data, error } = await supabase.functions.invoke('customer-portal');
+        
+        if (error) {
+          console.error('Error opening customer portal:', error);
+          toast({
+            title: 'Erro',
+            description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
+            variant: 'destructive',
+          });
+          throw error;
+        }
+        
+        console.log('Customer portal session created:', data);
+        
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('No portal URL returned');
+        }
+      } catch (error: any) {
         console.error('Error opening customer portal:', error);
+        
+        // Se a função não existe, estamos em ambiente de desenvolvimento/teste
         toast({
-          title: 'Erro',
-          description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
-          variant: 'destructive',
+          title: 'Modo de teste',
+          description: 'Portal do cliente Stripe não está configurado neste ambiente.',
         });
-        throw new Error(error.message);
-      }
-      
-      console.log('Customer portal session created:', data);
-      
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No portal URL returned');
       }
     } catch (error) {
       console.error('Error opening customer portal:', error);

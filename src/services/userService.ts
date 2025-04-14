@@ -5,12 +5,33 @@ export const setupNewUserData = async (userId: string, email: string) => {
   try {
     console.log(`Configurando dados padrão para o usuário: ${email} (${userId})`);
     
+    // Tentar criar a tabela subscribers se ela não existir
+    try {
+      await supabase.rpc('create_subscribers_if_not_exists');
+      console.log('Verificação de tabela subscribers realizada');
+    } catch (tableError) {
+      console.error('Erro ao verificar tabela subscribers:', tableError);
+      // Continua mesmo com erro para tentar as operações seguintes
+    }
+    
     // Check if subscriber record already exists to avoid duplicates
-    const { data: existingSubscriber } = await supabase
+    const { data: existingSubscriber, error: checkError } = await supabase
       .from('subscribers')
       .select('*')
       .eq('user_id', userId)
       .maybeSingle();
+    
+    if (checkError) {
+      console.error('Erro ao verificar assinante existente:', checkError);
+      // Se houve erro na verificação, podemos ter um problema de tabela não existente
+      // Tentemos criar a tabela diretamente via SQL
+      try {
+        await supabase.rpc('create_subscribers_if_not_exists');
+        console.log('Tentativa de criar tabela subscribers realizada');
+      } catch (createError) {
+        console.error('Erro ao criar tabela subscribers:', createError);
+      }
+    }
     
     if (!existingSubscriber) {
       // Create a subscriber record
@@ -33,11 +54,22 @@ export const setupNewUserData = async (userId: string, email: string) => {
     }
 
     // Check if expense categories already exist for this user
-    const { data: existingCategories } = await supabase
+    const { data: existingCategories, error: categoriesCheckError } = await supabase
       .from('expense_categories')
       .select('id')
       .eq('user_id', userId)
       .limit(1);
+    
+    if (categoriesCheckError) {
+      console.error('Erro ao verificar categorias existentes:', categoriesCheckError);
+      // Tentar criar a tabela de categorias se necessário
+      try {
+        await supabase.rpc('create_expense_categories_if_not_exists');
+        console.log('Verificação de tabela expense_categories realizada');
+      } catch (tableError) {
+        console.error('Erro ao verificar tabela expense_categories:', tableError);
+      }
+    }
     
     if (!existingCategories || existingCategories.length === 0) {
       // Create default expense categories

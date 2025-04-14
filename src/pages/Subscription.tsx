@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/common/PageHeader';
@@ -8,6 +8,8 @@ import SubscriptionDetails from '@/components/subscription/SubscriptionDetails';
 import FAQSection from '@/components/subscription/FAQSection';
 import { subscriptionPlans } from '@/data/subscription-plans';
 import { useSubscription } from '@/hooks/use-subscription';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 const Subscription = () => {
   const {
@@ -19,6 +21,27 @@ const Subscription = () => {
     handleSubscribe,
     openCustomerPortal
   } = useSubscription();
+  
+  const { toast } = useToast();
+
+  // Verificar e criar tabelas ao montar o componente
+  useEffect(() => {
+    const setupTablesIfNeeded = async () => {
+      try {
+        // Tentar criar as tabelas necessárias se elas não existirem
+        await supabase.rpc('create_subscribers_if_not_exists');
+        console.log('Verificação de tabela subscribers concluída');
+      } catch (error) {
+        console.error('Erro ao verificar tabela subscribers:', error);
+        toast({
+          title: 'Aviso do Sistema',
+          description: 'Configuração inicial em andamento. Algumas funcionalidades podem estar limitadas.',
+        });
+      }
+    };
+    
+    setupTablesIfNeeded();
+  }, []);
 
   return (
     <div>
