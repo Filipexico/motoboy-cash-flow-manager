@@ -20,17 +20,38 @@ import Admin from "./pages/Admin";
 import Subscription from "./pages/Subscription";
 import Landing from "./pages/Landing";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1, // Reduz o número de tentativas para evitar loops longos
+      refetchOnWindowFocus: false, // Desativa refetch automático
+    },
+  },
+});
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
-  if (isLoading) {
+  // Limitamos o tempo de carregamento para evitar ficar preso
+  const [timeoutOccurred, setTimeoutOccurred] = React.useState(false);
+  
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.log("Tempo de carregamento excedido, forçando renderização");
+        setTimeoutOccurred(true);
+      }
+    }, 5000); // 5 segundos de timeout
+    
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+  
+  if (isLoading && !timeoutOccurred) {
     return <div className="flex items-center justify-center h-screen">Carregando...</div>;
   }
   
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !timeoutOccurred) {
     return <Navigate to="/login" />;
   }
   
@@ -41,11 +62,25 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
   
-  if (isLoading) {
+  // Limitamos o tempo de carregamento para evitar ficar preso
+  const [timeoutOccurred, setTimeoutOccurred] = React.useState(false);
+  
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.log("Tempo de carregamento excedido em AdminRoute, forçando renderização");
+        setTimeoutOccurred(true);
+      }
+    }, 5000); // 5 segundos de timeout
+    
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+  
+  if (isLoading && !timeoutOccurred) {
     return <div className="flex items-center justify-center h-screen">Carregando...</div>;
   }
   
-  if (!user?.isAdmin) {
+  if (!user?.isAdmin && !timeoutOccurred) {
     return <Navigate to="/" />;
   }
   

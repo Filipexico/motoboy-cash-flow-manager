@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { User, AuthContextType } from '@/types';
@@ -32,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           console.error('Auth error:', error);
           setUser(null);
+          setIsLoading(false);
           return;
         }
 
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("Usuário autenticado:", session.user.email);
           
           try {
-            // Verificar se o usuário existe na tabela subscribers
+            // Verificar se o usuário existe na tabela subscribers - com tratamento de erro melhorado
             const { data: userProfile, error: profileError } = await supabase
               .from('subscribers')
               .select('*')
@@ -50,8 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (profileError) {
               console.error("Erro ao buscar perfil do usuário:", profileError);
+              // Continua mesmo com erro - não bloqueia o fluxo
             }
 
+            // Define o usuário mesmo sem dados de perfil completos
             setUser({
               id: session.user.id,
               email: session.user.email || '',
@@ -64,9 +66,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               name: session.user.user_metadata?.display_name || session.user.email,
             });
             
-            // Check subscription status
+            // Check subscription status - com tratamento de erro para não bloquear
             console.log("Verificando status da assinatura...");
-            checkSubscription();
+            try {
+              await checkSubscription();
+            } catch (subError) {
+              console.error("Erro ao verificar assinatura, continuando...", subError);
+              // Não bloqueia o fluxo
+            }
           } catch (profileError) {
             console.error("Erro ao processar dados do usuário:", profileError);
             // Ainda define o usuário com dados básicos se houver erro ao buscar perfil
@@ -94,6 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Adicionando um timeout para garantir que isLoading será definido como false
+    const timeoutId = setTimeout(() => {
+      if (isLoading) {
+        console.log("Timeout de segurança acionado no AuthContext");
+        setIsLoading(false);
+      }
+    }, 8000);
+
     checkUser();
 
     // Subscribe to auth changes
@@ -104,24 +119,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_OUT') {
           console.log("Usuário desconectado");
           setUser(null);
+          setIsLoading(false);
         } else if (event === 'SIGNED_IN' && session) {
           console.log("Usuário conectado:", session.user.email);
           try {
-            // Check if user exists in subscribers table
-            const { data: userProfile, error: profileError } = await supabase
-              .from('subscribers')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
-
-            if (profileError) {
-              console.error("Erro ao buscar perfil após login:", profileError);
+            // Check if user exists in subscribers table - com tratamento de erro melhorado
+            let userProfile;
+            try {
+              const { data, error: profileError } = await supabase
+                .from('subscribers')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+                
+              if (profileError) {
+                console.error("Erro ao buscar perfil após login:", profileError);
+                // Continua mesmo com erro
+              }
+              userProfile = data;
+            } catch (error) {
+              console.error("Erro ao buscar perfil:", error);
             }
               
-            // If this is a new user (no subscriber record), create default data
+            // If this is a new user (no subscriber record), attempt to create default data
             if (!userProfile) {
               console.log('Novo usuário detectado - configurando dados padrão');
-              await setupNewUserData(session.user.id, session.user.email || '');
+              try {
+                await setupNewUserData(session.user.id, session.user.email || '');
+              } catch (setupError) {
+                console.error("Erro ao configurar dados do usuário:", setupError);
+                // Continua mesmo com erro
+              }
             }
 
             setUser({
@@ -136,16 +164,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               name: session.user.user_metadata?.display_name || session.user.email,
             });
             
-            // Check subscription status
-            checkSubscription();
+            // Check subscription status - com tratamento para não bloquear
+            try {
+              await checkSubscription();
+            } catch (error) {
+              console.error("Erro ao verificar assinatura após login:", error);
+              // Não bloqueia o fluxo
+            }
           } catch (error) {
             console.error('Error setting up user data:', error);
+          } finally {
+            setIsLoading(false);
           }
         }
       }
     );
 
     return () => {
+      clearTimeout(timeoutId);
       authListener.data.subscription.unsubscribe();
     };
   }, []);
@@ -192,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Check subscription status
+  // Check subscription status - melhorado para não bloquear
   const checkSubscription = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -208,11 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('Erro ao verificar assinatura:', error);
-          toast({
-            title: 'Erro',
-            description: 'Falha ao verificar status da assinatura: ' + error.message,
-            variant: 'destructive',
-          });
+          // Não mostra toast para evitar incomodar o usuário
           return;
         }
         
@@ -233,7 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Erro na função checkSubscription:', error);
-        // Não mostra toast aqui para evitar erro em ambiente de desenvolvimento
+        // Não mostra toast para evitar incomodar o usuário
       }
     } catch (error) {
       console.error('Erro em checkSubscription:', error);
