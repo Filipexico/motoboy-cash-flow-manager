@@ -14,14 +14,18 @@ export const useSubscription = () => {
     subscription_end: string | null;
   }>(null);
   
-  const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-  );
+  // Check for environment variables
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  
+  // Only create the client if URL is available
+  const supabase = SUPABASE_URL 
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
   
   // Check subscription status
   const checkSubscriptionStatus = async () => {
-    if (!user) return;
+    if (!user || !supabase) return;
     
     try {
       setIsLoading(true);
@@ -59,6 +63,15 @@ export const useSubscription = () => {
   
   // Handle creating a checkout session
   const handleSubscribe = async (plan: 'premium' | 'enterprise') => {
+    if (!supabase) {
+      toast({
+        title: 'Erro de configuração',
+        description: 'Sistema de assinaturas não disponível',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -98,6 +111,15 @@ export const useSubscription = () => {
   
   // Handle opening the customer portal
   const openCustomerPortal = async () => {
+    if (!supabase) {
+      toast({
+        title: 'Erro de configuração',
+        description: 'Sistema de gerenciamento de assinaturas não disponível',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -164,7 +186,9 @@ export const useSubscription = () => {
   
   // Check subscription status on component mount
   useEffect(() => {
-    checkSubscriptionStatus();
+    if (user) {
+      checkSubscriptionStatus();
+    }
   }, [user]);
 
   const isSubscribed = subscription?.subscribed || user?.isSubscribed || false;

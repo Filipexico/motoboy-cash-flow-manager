@@ -7,11 +7,18 @@ import { useToast } from '@/hooks/use-toast';
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Supabase client
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// Check for environment variables and provide fallbacks for development
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Log for debugging
+console.log('Supabase URL:', SUPABASE_URL);
+console.log('Supabase Key length:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.length : 0);
+
+// Supabase client - only create if URL is available
+const supabase = SUPABASE_URL 
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 // Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -19,9 +26,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   
+  // Check if Supabase client was created successfully
+  useEffect(() => {
+    if (!supabase) {
+      console.error('Supabase client not initialized. Missing environment variables.');
+      toast({
+        title: 'Error de configuração',
+        description: 'Falha ao conectar com o Supabase. Verifique as variáveis de ambiente.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+    }
+  }, [toast]);
+  
   // Check if user is authenticated
   useEffect(() => {
     const checkUser = async () => {
+      if (!supabase) {
+        setIsLoading(false);
+        return;
+      }
+      
       try {
         setIsLoading(true);
         
@@ -68,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
 
     // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    const authListener = supabase ? supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -106,15 +131,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
-    );
+    ) : { data: { subscription: { unsubscribe: () => {} } } };
 
     return () => {
-      authListener.subscription.unsubscribe();
+      authListener.data.subscription.unsubscribe();
     };
   }, []);
 
   // Function to set up default data for new users
   const setupNewUserData = async (userId: string) => {
+    if (!supabase) return;
+    
     try {
       // Create a subscriber record
       await supabase.from('subscribers').insert({
@@ -145,6 +172,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check subscription status
   const checkSubscription = async () => {
+    if (!supabase) return;
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -192,6 +221,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Login function
   const login = async (email: string, password: string) => {
+    if (!supabase) {
+      toast({
+        title: 'Erro de configuração',
+        description: 'Sistema de autenticação não disponível',
+        variant: 'destructive',
+      });
+      throw new Error('Authentication system unavailable');
+    }
+    
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signInWithPassword({
@@ -222,7 +260,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Register function
-  const register = async (email: string, password: string, name?: string) => {
+  const register = async (email: string, password: string, name?: string): Promise<void> => {
+    if (!supabase) {
+      toast({
+        title: 'Erro de configuração',
+        description: 'Sistema de cadastro não disponível',
+        variant: 'destructive',
+      });
+      throw new Error('Registration system unavailable');
+    }
+    
     try {
       setIsLoading(true);
       
@@ -244,8 +291,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Cadastro realizado com sucesso',
         description: 'Bem-vindo ao MotoControle!',
       });
-      
-      return true;
     } catch (error) {
       console.error('Registration error:', error);
       toast({
@@ -253,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: error.message || 'Falha ao criar conta',
         variant: 'destructive',
       });
-      return false;
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -261,6 +306,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Logout
   const logout = async () => {
+    if (!supabase) return;
+    
     await supabase.auth.signOut();
     setUser(null);
     toast({
