@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +13,6 @@ export const useSubscription = () => {
     subscription_end: string | null;
   }>(null);
   
-  // Check subscription status
   const checkSubscriptionStatus = async () => {
     if (!user) {
       return;
@@ -26,7 +24,6 @@ export const useSubscription = () => {
       console.log('Manually checking subscription status...');
       
       try {
-        // Verifica se a função check-subscription existe
         const { data, error } = await supabase.functions.invoke('check-subscription');
         
         if (error) {
@@ -37,21 +34,23 @@ export const useSubscription = () => {
             variant: 'destructive',
           });
           
-          // Fallback: Verificar diretamente no banco de dados
           await fallbackSubscriptionCheck(user.id);
-          
           return;
         }
         
         console.log('Subscription check result:', data);
-        setSubscription(data);
         
-        // Also update the global auth context
+        const subscriptionData = {
+          subscribed: data?.subscribed as boolean ?? false,
+          subscription_tier: data?.subscription_tier as string | null ?? null,
+          subscription_end: data?.subscription_end as string | null ?? null
+        };
+        
+        setSubscription(subscriptionData);
+        
         await checkSubscription();
       } catch (error: any) {
         console.error('Error checking subscription:', error);
-        
-        // Fallback: Verificar diretamente no banco de dados
         await fallbackSubscriptionCheck(user.id);
         
         toast({
@@ -72,7 +71,6 @@ export const useSubscription = () => {
     }
   };
   
-  // Fallback para verificar assinatura diretamente no banco de dados
   const fallbackSubscriptionCheck = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -114,7 +112,6 @@ export const useSubscription = () => {
     }
   };
   
-  // Handle creating a checkout session
   const handleSubscribe = async (plan: 'premium' | 'enterprise') => {
     setIsLoading(true);
     
@@ -146,13 +143,11 @@ export const useSubscription = () => {
       } catch (error: any) {
         console.error('Error creating checkout session:', error);
         
-        // Funcionalidade simulada para teste/desenvolvimento
         toast({
           title: 'Ambiente de teste',
           description: 'As Edge Functions do Stripe ainda não foram implantadas. Em produção, você seria redirecionado para a página de pagamento do Stripe.',
         });
         
-        // Simular uma assinatura de teste para desenvolvimento
         await simulateTestSubscription(plan);
       }
     } catch (error) {
@@ -167,7 +162,6 @@ export const useSubscription = () => {
     }
   };
   
-  // Simular uma assinatura de teste para desenvolvimento
   const simulateTestSubscription = async (plan: 'premium' | 'enterprise') => {
     if (!user) return;
     
@@ -175,7 +169,6 @@ export const useSubscription = () => {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1); // Adiciona 1 mês
       
-      // Atualizar o registro na tabela subscribers
       const { error } = await supabase.from('subscribers').upsert({
         user_id: user.id,
         email: user.email,
@@ -190,7 +183,6 @@ export const useSubscription = () => {
         throw error;
       }
       
-      // Atualizar o estado e exibir toast de sucesso
       setSubscription({
         subscribed: true,
         subscription_tier: plan,
@@ -202,7 +194,6 @@ export const useSubscription = () => {
         description: `Assinatura ${plan} simulada com sucesso para fins de teste.`,
       });
       
-      // Atualizar o contexto de autenticação
       await checkSubscription();
     } catch (error) {
       console.error('Error simulating subscription:', error);
@@ -214,7 +205,6 @@ export const useSubscription = () => {
     }
   };
   
-  // Handle opening the customer portal
   const openCustomerPortal = async () => {
     setIsLoading(true);
     
@@ -261,7 +251,6 @@ export const useSubscription = () => {
     }
   };
 
-  // Check for URL parameters after returning from Stripe
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const success = params.get('success');
@@ -273,10 +262,8 @@ export const useSubscription = () => {
         description: 'Sua assinatura foi ativada com sucesso!',
       });
       
-      // Remove query parameters from URL
       window.history.replaceState(null, '', '/subscription');
       
-      // Check subscription status after successful payment
       checkSubscriptionStatus();
     } else if (canceled === 'true') {
       toast({
@@ -285,12 +272,10 @@ export const useSubscription = () => {
         variant: 'destructive',
       });
       
-      // Remove query parameters from URL
       window.history.replaceState(null, '', '/subscription');
     }
   }, []);
   
-  // Check subscription status on component mount
   useEffect(() => {
     if (user) {
       checkSubscriptionStatus();
