@@ -64,3 +64,19 @@ export interface DashboardStats {
   fuelEfficiency: number; // km/L
   costPerKm: number;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  isAdmin: boolean;
+  isSubscribed: boolean;
+  subscriptionEndDate?: Date;
+}
+
+export interface AuthState {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}

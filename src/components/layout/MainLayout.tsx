@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Building2, 
@@ -10,10 +10,23 @@ import {
   Car,
   LogOut,
   Menu,
-  X
+  X,
+  Shield,
+  CreditCard,
+  Settings,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -21,8 +34,17 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const { toast } = useToast();
+  const { user, logout, isAuthenticated } = useAuth();
+  
+  // Redirect to login if not authenticated
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
   
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   
@@ -58,12 +80,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: <Fuel className="w-5 h-5" />
     }
   ];
-  
+
+  // Admin items
+  const adminItems = user?.isAdmin ? [
+    {
+      name: 'Admin',
+      path: '/admin',
+      icon: <Shield className="w-5 h-5" />
+    }
+  ] : [];
+
   const handleLogout = () => {
-    toast({
-      title: "Logout",
-      description: "Você foi desconectado com sucesso.",
-    });
+    logout();
   };
   
   return (
@@ -103,19 +131,70 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   <span>{item.name}</span>
                 </Link>
               ))}
+              
+              {/* Admin section */}
+              {adminItems.length > 0 && (
+                <>
+                  <div className="pt-4 pb-2">
+                    <div className="px-2">
+                      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Administração
+                      </h2>
+                    </div>
+                  </div>
+                  
+                  {adminItems.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`dashboard-link ${location.pathname === item.path ? 'active' : ''}`}
+                    >
+                      {item.icon}
+                      <span>{item.name}</span>
+                    </Link>
+                  ))}
+                </>
+              )}
             </nav>
           </div>
           
           <div className="p-4 border-t border-gray-200">
-            <button
-              onClick={handleLogout}
-              className="dashboard-link w-full justify-between text-gray-500 hover:text-red-500"
-            >
-              <span className="flex items-center gap-2">
-                <LogOut className="w-5 h-5" />
-                <span>Sair</span>
-              </span>
-            </button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                  {user?.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                  <p className="text-xs text-gray-500">{user?.email}</p>
+                </div>
+              </div>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Settings className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/subscription')}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Assinatura</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
