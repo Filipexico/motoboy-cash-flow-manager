@@ -6,7 +6,10 @@ import { supabase } from '@/lib/supabase';
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn().mockReturnThis(),
-    insert: vi.fn(),
+    insert: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockReturnThis(),
   },
 }));
 
@@ -16,32 +19,57 @@ describe('userService', () => {
   });
 
   describe('setupNewUserData', () => {
-    it('should setup default data for new user', async () => {
-      const mockUserId = '123';
-      const mockEmail = 'test@example.com';
-      
-      vi.mocked(supabase.from).mockImplementation((table) => ({
+    it('should create subscriber record and default categories', async () => {
+      // Setup mocks for subscriber creation
+      const mockFromSubscribers = vi.fn().mockReturnValue({
         insert: vi.fn().mockResolvedValue({ error: null }),
-        from: vi.fn(),
-      }));
+      });
+      
+      // Setup mocks for categories creation
+      const mockFromCategories = vi.fn().mockReturnValue({
+        insert: vi.fn().mockResolvedValue({ error: null }),
+      });
+      
+      // Mock the supabase.from method to return different responses based on table name
+      vi.mocked(supabase.from).mockImplementation((tableName) => {
+        if (tableName === 'subscribers') {
+          return mockFromSubscribers() as any;
+        } else if (tableName === 'expense_categories') {
+          return mockFromCategories() as any;
+        }
+        return {} as any;
+      });
 
-      await setupNewUserData(mockUserId, mockEmail);
+      await setupNewUserData('user-123', 'test@example.com');
 
-      expect(supabase.from).toHaveBeenCalledWith('subscribers');
-      expect(supabase.from).toHaveBeenCalledWith('expense_categories');
+      // Check if subscribers table was called with correct data
+      expect(mockFromSubscribers).toHaveBeenCalled();
+      expect(mockFromCategories).toHaveBeenCalled();
     });
 
     it('should handle errors during setup', async () => {
-      const mockError = new Error('Database error');
-      vi.mocked(supabase.from).mockImplementation((table) => ({
-        insert: vi.fn().mockResolvedValue({ error: mockError }),
-        from: vi.fn(),
-      }));
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
+      // Mock subscriber error
+      const mockFromSubscribers = vi.fn().mockReturnValue({
+        insert: vi.fn().mockResolvedValue({ error: { message: 'Subscriber error' } }),
+      });
+      
+      vi.mocked(supabase.from).mockImplementation((tableName) => {
+        if (tableName === 'subscribers') {
+          return mockFromSubscribers() as any;
+        }
+        return {} as any;
+      });
 
-      const consoleErrorSpy = vi.spyOn(console, 'error');
-      await setupNewUserData('123', 'test@example.com');
+      await setupNewUserData('user-123', 'test@example.com');
 
-      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Erro ao criar registro de assinante:',
+        { message: 'Subscriber error' }
+      );
+      
+      consoleErrorSpy.mockRestore();
     });
   });
 });

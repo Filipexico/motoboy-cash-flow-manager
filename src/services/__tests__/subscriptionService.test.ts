@@ -28,6 +28,8 @@ describe('subscriptionService', () => {
       isSubscribed: false,
       subscriptionTier: null,
       subscriptionEnd: null,
+      subscriptionEndDate: null,
+      displayName: 'Test User',
       name: 'Test User',
     };
 
@@ -35,9 +37,13 @@ describe('subscriptionService', () => {
 
     it('should update user subscription status when session exists', async () => {
       vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-        data: { session: { user: { id: '123' } } },
+        data: { 
+          session: { 
+            user: { id: '123' } 
+          } 
+        },
         error: null,
-      });
+      } as any);
 
       vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
         data: {
@@ -46,7 +52,7 @@ describe('subscriptionService', () => {
           subscription_end: '2025-12-31',
         },
         error: null,
-      });
+      } as any);
 
       await checkSubscription(mockUser, setUser);
 
@@ -61,7 +67,7 @@ describe('subscriptionService', () => {
       vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
         data: { session: null },
         error: null,
-      });
+      } as any);
 
       await checkSubscription(mockUser, setUser);
 

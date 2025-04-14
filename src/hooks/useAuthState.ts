@@ -1,19 +1,19 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User } from '@/types';
-import { supabase } from '@/lib/supabase';
 
 export const useAuthState = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const updateUserData = async (sessionUser: any, userProfile?: any) => {
+  const updateUserData = useCallback(async (sessionUser: any, userProfile?: any) => {
     if (!sessionUser) {
       setUser(null);
       return;
     }
 
-    setUser({
+    // Create a new user object with the updated data
+    const updatedUser: User = {
       id: sessionUser.id,
       email: sessionUser.email || '',
       isAdmin: sessionUser.app_metadata?.role === 'admin',
@@ -23,8 +23,12 @@ export const useAuthState = () => {
       subscriptionEndDate: userProfile?.subscription_end || null,
       displayName: sessionUser.user_metadata?.display_name || sessionUser.email,
       name: sessionUser.user_metadata?.display_name || sessionUser.email,
-    });
-  };
+    };
+
+    // Set the updated user
+    setUser(updatedUser);
+    return updatedUser;
+  }, []);
 
   return {
     user,

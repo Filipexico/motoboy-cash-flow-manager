@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loginUser, registerUser, logoutUser } from '../authService';
 import { supabase } from '@/lib/supabase';
+import { AuthError } from '@supabase/supabase-js';
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -21,10 +22,15 @@ describe('authService', () => {
   describe('loginUser', () => {
     it('should successfully login a user', async () => {
       const mockUser = { email: 'test@example.com' };
-      const mockSession = { user: mockUser };
-      const mockResponse = { data: { user: mockUser, session: mockSession }, error: null };
+      const mockResponse = {
+        data: {
+          user: mockUser,
+          session: { user: mockUser },
+        },
+        error: null,
+      };
       
-      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce(mockResponse);
+      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce(mockResponse as any);
       
       const result = await loginUser('test@example.com', 'password123');
       
@@ -36,11 +42,18 @@ describe('authService', () => {
     });
 
     it('should throw error on login failure', async () => {
-      const mockError = { message: 'Invalid credentials', code: 'invalid_credentials', status: 401, __isAuthError: true };
+      const mockError: AuthError = {
+        name: 'AuthApiError',
+        message: 'Invalid credentials',
+        status: 401,
+        __isAuthError: true,
+        code: 'invalid_credentials',
+      };
+      
       vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce({ 
         data: { user: null, session: null }, 
         error: mockError 
-      });
+      } as any);
       
       await expect(loginUser('test@example.com', 'wrong-password')).rejects.toEqual(mockError);
     });
@@ -49,10 +62,15 @@ describe('authService', () => {
   describe('registerUser', () => {
     it('should successfully register a new user', async () => {
       const mockUser = { id: '123', email: 'new@example.com' };
-      const mockSession = { user: mockUser };
-      const mockResponse = { data: { user: mockUser, session: mockSession }, error: null };
+      const mockResponse = {
+        data: {
+          user: mockUser,
+          session: { user: mockUser },
+        },
+        error: null,
+      };
       
-      vi.mocked(supabase.auth.signUp).mockResolvedValueOnce(mockResponse);
+      vi.mocked(supabase.auth.signUp).mockResolvedValueOnce(mockResponse as any);
       
       const result = await registerUser('new@example.com', 'password123', 'Test User');
       
@@ -69,11 +87,18 @@ describe('authService', () => {
     });
 
     it('should throw error on registration failure', async () => {
-      const mockError = { message: 'Email already exists', code: 'email_taken', status: 400, __isAuthError: true };
+      const mockError: AuthError = {
+        name: 'AuthApiError',
+        message: 'Email already exists',
+        status: 400,
+        __isAuthError: true,
+        code: 'email_taken',
+      };
+      
       vi.mocked(supabase.auth.signUp).mockResolvedValueOnce({ 
         data: { user: null, session: null }, 
         error: mockError 
-      });
+      } as any);
       
       await expect(registerUser('existing@example.com', 'password123')).rejects.toEqual(mockError);
     });

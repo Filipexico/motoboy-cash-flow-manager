@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("Usuário autenticado:", session.user.email);
           
           try {
+            // Fetch user profile
             const { data: userProfile, error: profileError } = await supabase
               .from('subscribers')
               .select('*')
@@ -48,12 +49,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.error("Erro ao buscar perfil do usuário:", profileError);
             }
 
+            // Update user data in state
             await updateUserData(session.user, userProfile);
             
-            try {
-              if (isMounted) await checkSubscription(user, setUser);
-            } catch (subError) {
-              console.error("Erro ao verificar assinatura, continuando...", subError);
+            // Check subscription status
+            if (isMounted && user) {
+              try {
+                await checkSubscription(user, setUser);
+              } catch (subError) {
+                console.error("Erro ao verificar assinatura, continuando...", subError);
+              }
             }
           } catch (profileError) {
             console.error("Erro ao processar dados do usuário:", profileError);
@@ -73,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Safety timeout to prevent indefinite loading state
     const timeoutId = setTimeout(() => {
       if (isLoading && isMounted) {
         console.log("Timeout de segurança acionado no AuthContext");
@@ -82,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkUser();
 
+    // Setup auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth state changed:", event);
       if (event === 'SIGNED_OUT') {
@@ -93,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === 'SIGNED_IN' && session) {
         console.log("Usuário conectado:", session.user.email);
         try {
+          // Fetch user profile after sign in
           const { data: userProfile, error: profileError } = await supabase
             .from('subscribers')
             .select('*')
@@ -105,12 +113,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (isMounted) {
             await updateUserData(session.user, userProfile);
-          }
-
-          try {
-            if (isMounted) await checkSubscription(user, setUser);
-          } catch (error) {
-            console.error("Erro ao verificar assinatura após login:", error);
+            
+            // Check subscription after setting up user data
+            if (user) {
+              try {
+                await checkSubscription(user, setUser);
+              } catch (error) {
+                console.error("Erro ao verificar assinatura após login:", error);
+              }
+            }
           }
         } catch (error) {
           console.error('Error setting up user data:', error);
@@ -127,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Login function using authService
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
@@ -148,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Register function using authService
   const register = async (email: string, password: string, name?: string) => {
     try {
       setIsLoading(true);
@@ -169,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Logout function
   const logout = async () => {
     await logoutUser();
     setUser(null);
@@ -178,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Context value
   const value = {
     isAuthenticated: !!user,
     isLoading,
