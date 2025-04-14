@@ -1,4 +1,5 @@
 
+import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Subscription from "./pages/Subscription";
 import Landing from "./pages/Landing";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,9 +36,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
   // Limitamos o tempo de carregamento para evitar ficar preso
-  const [timeoutOccurred, setTimeoutOccurred] = React.useState(false);
+  const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoading) {
         console.log("Tempo de carregamento excedido, forçando renderização");
@@ -63,9 +65,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
   
   // Limitamos o tempo de carregamento para evitar ficar preso
-  const [timeoutOccurred, setTimeoutOccurred] = React.useState(false);
+  const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoading) {
         console.log("Tempo de carregamento excedido em AdminRoute, forçando renderização");
@@ -91,12 +93,13 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public routes */}
+      <Route path="/" element={<Index />} />
       <Route path="/landing" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       
       {/* Protected routes */}
-      <Route path="/" element={
+      <Route path="/dashboard" element={
         <ProtectedRoute>
           <MainLayout>
             <Dashboard />
