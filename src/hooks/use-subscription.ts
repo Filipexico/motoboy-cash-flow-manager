@@ -44,9 +44,9 @@ export const useSubscription = () => {
         console.log('Subscription check result:', data);
         
         const subscriptionData: SubscriptionData = {
-          subscribed: Boolean(data?.subscribed),
-          subscription_tier: data?.subscription_tier as string | null,
-          subscription_end: data?.subscription_end as string | null
+          subscribed: data?.subscribed === true,
+          subscription_tier: typeof data?.subscription_tier === 'string' ? data.subscription_tier : null,
+          subscription_end: typeof data?.subscription_end === 'string' ? data.subscription_end : null
         };
         
         setSubscription(subscriptionData);
