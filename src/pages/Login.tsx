@@ -48,11 +48,20 @@ const Login = () => {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setIsSubmitting(true);
+      console.log("Tentando login com:", data.email);
       await login(data.email, data.password);
+      toast({
+        title: "Login realizado com sucesso",
+        description: "Bem-vindo de volta!",
+      });
       navigate('/');
     } catch (error) {
       console.error('Login error:', error);
-      // Error is already handled in the login function with toast
+      toast({
+        title: "Erro no login",
+        description: "Email ou senha incorretos. Por favor, tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

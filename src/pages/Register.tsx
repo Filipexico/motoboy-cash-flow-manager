@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,6 +29,7 @@ const Register = () => {
   const { register, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -48,11 +49,23 @@ const Register = () => {
   
   const onSubmit = async (data: RegisterFormValues) => {
     try {
+      setIsSubmitting(true);
+      console.log("Registrando usuário:", data.email);
       await register(data.email, data.password, data.name);
+      toast({
+        title: "Registro realizado com sucesso",
+        description: "Você será redirecionado para a página inicial.",
+      });
       navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
-      // Error is already handled in the register function with toast
+      toast({
+        title: "Erro no registro",
+        description: error.message || "Não foi possível completar o registro. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -122,8 +135,8 @@ const Register = () => {
               )}
             />
             
-            <Button type="submit" className="w-full">
-              Cadastrar
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Processando...' : 'Cadastrar'}
             </Button>
           </form>
         </Form>

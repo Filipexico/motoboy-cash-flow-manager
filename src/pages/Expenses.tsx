@@ -89,7 +89,6 @@ const Expenses = () => {
         title="Despesas" 
         description="Gerencie e acompanhe suas despesas"
         actionLabel="Nova Despesa"
-        actionIcon="plus"
         onAction={() => document.getElementById('add-expense-trigger')?.click()}
       />
       
@@ -120,7 +119,6 @@ const Expenses = () => {
               <ExpenseList 
                 expenses={groupedExpenses[month]} 
                 categories={categories}
-                onDelete={handleDelete} 
               />
             </div>
           ))}
