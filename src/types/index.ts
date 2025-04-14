@@ -84,7 +84,7 @@ export type AuthContextType = {
   checkSubscription: () => Promise<void>;
   logout: () => Promise<void>;
   login?: (email: string, password: string) => Promise<void>;
-  register?: (email: string, password: string, name?: string) => Promise<void>;
+  register?: (email: string, password: string, name?: string) => Promise<void>; // Changed to Promise<void>
 };
 
 export type PeriodType = 'week' | 'month';
