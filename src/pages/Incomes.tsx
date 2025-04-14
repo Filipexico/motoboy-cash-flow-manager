@@ -121,8 +121,14 @@ const Incomes = () => {
         description: "As informações do rendimento foram atualizadas com sucesso.",
       });
     } else {
-      // Add new income
-      const newIncome = addIncome(values);
+      // Add new income - ensure all required fields are passed
+      const newIncome = addIncome({
+        companyId: values.companyId,
+        amount: values.amount,
+        weekStartDate: values.weekStartDate,
+        weekEndDate: values.weekEndDate,
+        description: values.description,
+      });
       setIncomeList([...incomeList, newIncome]);
       toast({
         title: "Rendimento adicionado",
@@ -162,20 +168,19 @@ const Incomes = () => {
 
       <div className="space-y-4">
         {/* Group incomes by month */}
-        {incomeList
+        {Object.entries(incomeList
           .sort((a, b) => new Date(b.weekEndDate).getTime() - new Date(a.weekEndDate).getTime())
           .reduce((groups, income) => {
             const month = format(new Date(income.weekEndDate), 'MMMM yyyy', { locale: ptBR });
             if (!groups[month]) groups[month] = [];
             groups[month].push(income);
             return groups;
-          }, {} as Record<string, Income[]>)
-          .entries()
-          .map(([month, incomes]) => (
+          }, {} as Record<string, Income[]>))
+          .map(([month, monthIncomes]) => (
             <div key={month}>
               <h3 className="font-medium text-gray-700 mb-2">{month.charAt(0).toUpperCase() + month.slice(1)}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {incomes.map(income => (
+                {monthIncomes.map(income => (
                   <Card key={income.id}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start">
