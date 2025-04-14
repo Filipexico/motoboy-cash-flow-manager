@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,9 +35,9 @@ const Register = () => {
   const [registerError, setRegisterError] = useState<string | null>(null);
   
   // Redirect if already authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
   
@@ -58,9 +58,10 @@ const Register = () => {
       await register(data.email, data.password, data.name);
       toast({
         title: "Registro realizado com sucesso",
-        description: "Você será redirecionado para a página inicial.",
+        description: "Você será redirecionado para o painel.",
       });
-      navigate('/');
+      // Navegação explícita após registro bem-sucedido
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Registration error:', error);
       let errorMessage = 'Não foi possível completar o registro. Tente novamente.';

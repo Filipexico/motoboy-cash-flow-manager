@@ -1,19 +1,25 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    // Use setTimeout to ensure navigation happens after component is mounted
+    // Use setTimeout para garantir que a navegação aconteça após o componente ser montado
     const timer = setTimeout(() => {
-      navigate('/dashboard');
-    }, 500);
+      if (isAuthenticated) {
+        navigate('/dashboard');
+      } else {
+        navigate('/landing');
+      }
+    }, 300); // Reduzido para melhor experiência do usuário
     
-    // Clean up timer
+    // Limpar timer
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate, isAuthenticated]);
 
   return (
     <div className="flex items-center justify-center h-screen bg-gray-50">

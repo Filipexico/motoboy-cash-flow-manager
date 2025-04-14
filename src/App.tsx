@@ -24,17 +24,14 @@ import Index from "./pages/Index";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1, // Reduz o número de tentativas para evitar loops longos
-      refetchOnWindowFocus: false, // Desativa refetch automático
+      retry: 1,
+      refetchOnWindowFocus: false,
     },
   },
 });
 
-// Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
-  
-  // Limiting loading time to prevent getting stuck
   const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
   useEffect(() => {
@@ -43,7 +40,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         console.log("Tempo de carregamento excedido, forçando renderização");
         setTimeoutOccurred(true);
       }
-    }, 3000); // Reduced to 3 seconds timeout
+    }, 2000);
     
     return () => clearTimeout(timer);
   }, [isLoading]);
@@ -68,11 +65,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Admin route component
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
-  
-  // Limiting loading time to prevent getting stuck
   const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
   useEffect(() => {
@@ -81,7 +75,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
         console.log("Tempo de carregamento excedido em AdminRoute, forçando renderização");
         setTimeoutOccurred(true);
       }
-    }, 3000); // Reduced to 3 seconds timeout
+    }, 2000);
     
     return () => clearTimeout(timer);
   }, [isLoading]);
@@ -109,13 +103,11 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Public routes */}
       <Route path="/" element={<Index />} />
       <Route path="/landing" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       
-      {/* Protected routes */}
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <MainLayout>
@@ -123,6 +115,7 @@ const AppRoutes = () => {
           </MainLayout>
         </ProtectedRoute>
       } />
+      
       <Route path="/empresas" element={
         <ProtectedRoute>
           <MainLayout>
@@ -130,6 +123,7 @@ const AppRoutes = () => {
           </MainLayout>
         </ProtectedRoute>
       } />
+      
       <Route path="/rendimentos" element={
         <ProtectedRoute>
           <MainLayout>
@@ -137,6 +131,7 @@ const AppRoutes = () => {
           </MainLayout>
         </ProtectedRoute>
       } />
+      
       <Route path="/despesas" element={
         <ProtectedRoute>
           <MainLayout>
@@ -144,6 +139,7 @@ const AppRoutes = () => {
           </MainLayout>
         </ProtectedRoute>
       } />
+      
       <Route path="/veiculos" element={
         <ProtectedRoute>
           <MainLayout>
@@ -151,6 +147,7 @@ const AppRoutes = () => {
           </MainLayout>
         </ProtectedRoute>
       } />
+      
       <Route path="/abastecimentos" element={
         <ProtectedRoute>
           <MainLayout>
@@ -158,6 +155,7 @@ const AppRoutes = () => {
           </MainLayout>
         </ProtectedRoute>
       } />
+      
       <Route path="/profile" element={
         <ProtectedRoute>
           <MainLayout>
@@ -165,6 +163,7 @@ const AppRoutes = () => {
           </MainLayout>
         </ProtectedRoute>
       } />
+      
       <Route path="/subscription" element={
         <ProtectedRoute>
           <MainLayout>
@@ -173,7 +172,6 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
       
-      {/* Admin routes */}
       <Route path="/admin" element={
         <AdminRoute>
           <MainLayout>
@@ -182,7 +180,6 @@ const AppRoutes = () => {
         </AdminRoute>
       } />
       
-      {/* Not found route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

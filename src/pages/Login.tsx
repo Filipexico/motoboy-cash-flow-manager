@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,9 +34,9 @@ const Login = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   
   // Redirect if already authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
   
@@ -58,7 +58,8 @@ const Login = () => {
         title: "Login realizado com sucesso",
         description: "Bem-vindo de volta!",
       });
-      navigate('/');
+      // Navegação explícita após login bem-sucedido
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);
       setLoginError(
