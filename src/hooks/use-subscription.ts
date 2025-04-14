@@ -9,7 +9,7 @@ const SUPABASE_URL = 'https://qewlxnjqojxprkodfdqf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFld2x4bmpxb2p4cHJrb2RmZHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MjE0MTIsImV4cCI6MjA2MDE5NzQxMn0.lADhLBSYqfMPejc840DUUI-ylpihgiuHvHYYiHYnkKQ';
 
 // Create Supabase client
-const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export const useSubscription = () => {
   const { user, checkSubscription } = useAuth();
@@ -23,14 +23,7 @@ export const useSubscription = () => {
   
   // Check subscription status
   const checkSubscriptionStatus = async () => {
-    if (!user || !supabase) {
-      if (!supabase) {
-        toast({
-          title: 'Configuração incompleta',
-          description: 'Não foi possível conectar ao Supabase. Verifique a configuração.',
-          variant: 'destructive',
-        });
-      }
+    if (!user) {
       return;
     }
     
@@ -70,15 +63,6 @@ export const useSubscription = () => {
   
   // Handle creating a checkout session
   const handleSubscribe = async (plan: 'premium' | 'enterprise') => {
-    if (!supabase) {
-      toast({
-        title: 'Erro de configuração',
-        description: 'Sistema de assinaturas não disponível. Verifique a conexão com o Supabase.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     setIsLoading(true);
     
     try {
@@ -118,15 +102,6 @@ export const useSubscription = () => {
   
   // Handle opening the customer portal
   const openCustomerPortal = async () => {
-    if (!supabase) {
-      toast({
-        title: 'Erro de configuração',
-        description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique a conexão com o Supabase.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     setIsLoading(true);
     
     try {

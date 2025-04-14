@@ -1,147 +1,90 @@
 
 import React from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useForm } from 'react-hook-form';
-import * as z from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Expense } from '@/types';
-import { Button } from '@/components/ui/button';
-import {
+
+import { 
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
+  FormMessage
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { addExpense } from '@/lib/data/expenses';
-import { expenseCategories } from '@/lib/data/expense-categories';
-import { useToast } from '@/hooks/use-toast';
+import { ExpenseCategory, Expense } from '@/types';
 
-// Define form schema with validation
+// Define the form schema
 const expenseFormSchema = z.object({
-  description: z.string().min(2, "Descrição deve ter pelo menos 2 caracteres"),
-  amount: z.coerce.number().positive("Valor deve ser positivo"),
-  categoryId: z.string().min(1, "Selecione uma categoria"),
+  amount: z.coerce.number().positive('O valor deve ser maior que zero'),
   date: z.date(),
+  description: z.string().optional(),
+  categoryId: z.string().min(1, 'Selecione uma categoria'),
+  vehicleId: z.string().optional(),
 });
 
-type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
+export type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
-interface ExpenseFormProps {
-  onSuccess?: (data: Omit<Expense, "id" | "createdAt">) => void;
+// Define component props
+export interface ExpenseFormProps {
+  onSubmit: (data: Omit<Expense, 'id' | 'createdAt'>) => void;
+  categories: ExpenseCategory[];
+  defaultValues?: Partial<ExpenseFormValues>;
 }
 
-const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess }) => {
-  const { toast } = useToast();
-
+const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSubmit, categories, defaultValues }) => {
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
-      description: '',
       amount: 0,
-      categoryId: '',
       date: new Date(),
+      description: '',
+      categoryId: '',
+      ...defaultValues,
     },
   });
 
-  const onSubmit = (values: ExpenseFormValues) => {
-    // Ensure all required fields are present (not optional)
-    const expenseData: Omit<Expense, "id" | "createdAt"> = {
-      description: values.description,
+  const handleSubmit = (values: ExpenseFormValues) => {
+    onSubmit({
       amount: values.amount,
-      categoryId: values.categoryId,
       date: values.date.toISOString(),
-    };
-    
-    addExpense(expenseData);
-    
-    toast({
-      title: "Despesa registrada",
-      description: `Despesa de ${values.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} foi registrada com sucesso!`,
+      description: values.description || '',
+      categoryId: values.categoryId,
+      vehicleId: values.vehicleId,
     });
-    
-    form.reset();
-    
-    if (onSuccess) {
-      onSuccess(expenseData);
-    }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descrição</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Descrição da despesa" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Valor</FormLabel>
+              <FormLabel>Valor (R$)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0.00" step="0.01" {...field} />
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  placeholder="0,00" 
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
-        <FormField
-          control={form.control}
-          name="categoryId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Categoria</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {expenseCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
+
         <FormField
           control={form.control}
           name="date"
@@ -172,8 +115,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess }) => {
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
+                    disabled={(date) => date > new Date()}
                     initialFocus
-                    locale={ptBR}
                   />
                 </PopoverContent>
               </Popover>
@@ -181,9 +124,48 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess }) => {
             </FormItem>
           )}
         />
-        
+
+        <FormField
+          control={form.control}
+          name="categoryId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Categoria</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descrição</FormLabel>
+              <FormControl>
+                <Input placeholder="Descrição da despesa" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" className="w-full">
-          Registrar Despesa
+          Salvar
         </Button>
       </form>
     </Form>

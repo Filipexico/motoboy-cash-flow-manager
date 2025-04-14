@@ -10,60 +10,55 @@ import { v4 as uuidv4 } from 'uuid';
 import PageHeader from '@/components/common/PageHeader';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 import ExpenseList from '@/components/expenses/ExpenseList';
-import { 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
   SheetClose,
 } from '@/components/ui/sheet';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 
 const Expenses = () => {
   const [expenseList, setExpenseList] = useState<Expense[]>(expenses);
   const [categories] = useState<ExpenseCategory[]>(expenseCategories);
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
   
-  // Apply filters and sorting
-  const filteredExpenses = expenseList
-    .filter(expense => 
-      filterCategory === 'all' ? true : expense.categoryId === filterCategory
-    )
-    .sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateSort === 'asc' ? dateA - dateB : dateB - dateA;
-    });
-  
-  // Calculate total for filtered expenses
-  const filteredTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  
-  // Group expenses by month
-  const groupedExpenses = filteredExpenses.reduce((groups, expense) => {
-    const month = format(new Date(expense.date), 'MMMM yyyy', { locale: ptBR });
-    if (!groups[month]) groups[month] = [];
-    groups[month].push(expense);
+  // Group expenses by month for display
+  const groupedExpenses = expenseList.reduce<Record<string, Expense[]>>((groups, expense) => {
+    const date = new Date(expense.date);
+    const monthYear = format(date, 'MMMM yyyy', { locale: ptBR });
+    
+    if (!groups[monthYear]) {
+      groups[monthYear] = [];
+    }
+    
+    groups[monthYear].push(expense);
     return groups;
-  }, {} as Record<string, Expense[]>);
+  }, {});
   
-  // Calculate monthly totals
-  const monthlyTotals = Object.entries(groupedExpenses).reduce((totals, [month, expenses]) => {
-    totals[month] = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    return totals;
-  }, {} as Record<string, number>);
+  // Sort expenses by date (newest first) within each group
+  Object.keys(groupedExpenses).forEach(month => {
+    groupedExpenses[month].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  });
+  
+  // Get sorted months
+  const sortedMonths = Object.keys(groupedExpenses).sort((a, b) => {
+    const dateA = new Date(a);
+    const dateB = new Date(b);
+    return dateB.getTime() - dateA.getTime();
+  });
+  
+  // Calculate total expenses
+  const totalExpenses = expenseList.reduce((sum, expense) => sum + expense.amount, 0);
   
   // Handle form submission
-  const handleSubmit = (formData: Omit<Expense, 'id'>) => {
+  const handleSubmit = (formData: Omit<Expense, 'id' | 'createdAt'>) => {
     const newExpense: Expense = {
       ...formData,
       id: uuidv4(),
@@ -73,8 +68,8 @@ const Expenses = () => {
     setExpenseList([...expenseList, newExpense]);
     
     toast({
-      title: "Despesa adicionada",
-      description: "Sua despesa foi registrada com sucesso!",
+      title: 'Despesa adicionada',
+      description: 'A despesa foi adicionada com sucesso.',
     });
   };
   
@@ -83,103 +78,104 @@ const Expenses = () => {
     setExpenseList(expenseList.filter(expense => expense.id !== id));
     
     toast({
-      title: "Despesa removida",
-      description: "A despesa foi removida com sucesso.",
+      title: 'Despesa excluída',
+      description: 'A despesa foi excluída com sucesso.',
     });
   };
   
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader 
         title="Despesas" 
         description="Gerencie e acompanhe suas despesas"
         actionLabel="Nova Despesa"
+        actionIcon="plus"
         onAction={() => document.getElementById('add-expense-trigger')?.click()}
       />
       
-      <div className="mb-6 flex flex-col sm:flex-row justify-between gap-4">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Select 
-            value={filterCategory} 
-            onValueChange={setFilterCategory}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filtrar por categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as categorias</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select 
-            value={dateSort} 
-            onValueChange={(value) => setDateSort(value as 'asc' | 'desc')}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Ordenar por data" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desc">Mais recentes primeiro</SelectItem>
-              <SelectItem value="asc">Mais antigas primeiro</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="text-right">
-          <p className="text-lg font-semibold">
-            Total: {filteredTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </p>
-        </div>
-      </div>
+      {/* Summary Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumo de Despesas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {totalExpenses.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </div>
+          <p className="text-muted-foreground">Total de despesas</p>
+        </CardContent>
+      </Card>
       
-      <div className="space-y-8">
-        {Object.entries(groupedExpenses).map(([month, monthExpenses]) => (
-          <div key={month} className="border rounded-lg overflow-hidden">
-            <div className="bg-gray-50 p-4 flex justify-between items-center border-b">
+      {/* Tabs for expense list */}
+      <Tabs defaultValue="list">
+        <TabsList>
+          <TabsTrigger value="list">Lista</TabsTrigger>
+          <TabsTrigger value="categories">Por Categoria</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="list" className="space-y-4">
+          {sortedMonths.map(month => (
+            <div key={month} className="space-y-2">
               <h3 className="text-lg font-medium capitalize">{month}</h3>
-              <span className="font-semibold">
-                {monthlyTotals[month].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </span>
+              <ExpenseList 
+                expenses={groupedExpenses[month]} 
+                categories={categories}
+                onDelete={handleDelete} 
+              />
             </div>
-            
-            <ExpenseList 
-              expenses={monthExpenses} 
-              categories={categories} 
-              onDelete={handleDelete}
-            />
-          </div>
-        ))}
+          ))}
+          
+          {sortedMonths.length === 0 && (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">Nenhuma despesa encontrada</p>
+            </div>
+          )}
+        </TabsContent>
         
-        {Object.keys(groupedExpenses).length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Nenhuma despesa encontrada.</p>
-            <Button 
-              className="mt-4" 
-              variant="outline"
-              onClick={() => document.getElementById('add-expense-trigger')?.click()}
-            >
-              Adicionar despesa
-            </Button>
+        <TabsContent value="categories">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {categories.map(category => {
+              const categoryExpenses = expenseList.filter(
+                expense => expense.categoryId === category.id
+              );
+              const categoryTotal = categoryExpenses.reduce(
+                (sum, expense) => sum + expense.amount, 0
+              );
+              
+              return (
+                <Card key={category.id}>
+                  <CardHeader>
+                    <CardTitle className="text-base">{category.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {categoryTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </div>
+                    <p className="text-muted-foreground">{categoryExpenses.length} despesas</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
       
+      {/* Add Expense Sheet */}
       <Sheet>
         <SheetTrigger asChild>
-          <Button id="add-expense-trigger" className="hidden">Adicionar Despesa</Button>
+          <div id="add-expense-trigger" className="hidden">Open</div>
         </SheetTrigger>
-        <SheetContent side="right" className="sm:max-w-md w-full overflow-y-auto">
+        <SheetContent>
           <SheetHeader>
-            <SheetTitle>Adicionar Despesa</SheetTitle>
+            <SheetTitle>Nova Despesa</SheetTitle>
+            <SheetDescription>
+              Adicione uma nova despesa ao seu controle financeiro.
+            </SheetDescription>
           </SheetHeader>
           <div className="mt-6">
             <SheetClose asChild>
               <ExpenseForm 
+                categories={categories} 
                 onSubmit={handleSubmit} 
               />
             </SheetClose>

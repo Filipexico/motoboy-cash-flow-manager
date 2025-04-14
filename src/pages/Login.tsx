@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,6 +28,7 @@ const Login = () => {
   const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -46,11 +47,14 @@ const Login = () => {
   
   const onSubmit = async (data: LoginFormValues) => {
     try {
+      setIsSubmitting(true);
       await login(data.email, data.password);
       navigate('/');
     } catch (error) {
       console.error('Login error:', error);
       // Error is already handled in the login function with toast
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -102,8 +106,8 @@ const Login = () => {
               )}
             />
             
-            <Button type="submit" className="w-full">
-              Entrar
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
         </Form>
