@@ -1,11 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Refueling } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -16,36 +13,23 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { addRefueling } from '@/lib/data/refuelings';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { vehicles } from '@/lib/data/vehicles';
+import { Refueling } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
-// Define form schema with validation
-const refuelingFormSchema = z.object({
-  date: z.date(),
-  vehicleId: z.string().min(1, "Selecione um veículo"),
-  odometerStart: z.coerce.number().nonnegative("Valor deve ser positivo"),
-  odometerEnd: z.coerce.number().nonnegative("Valor deve ser positivo"),
-  liters: z.coerce.number().positive("Valor deve ser positivo"),
-  pricePerLiter: z.coerce.number().positive("Valor deve ser positivo"),
+// Form schema validation
+const formSchema = z.object({
+  vehicleId: z.string().min(1, { message: 'Selecione um veículo' }),
+  date: z.string().min(1, { message: 'Data é obrigatória' }),
+  odometerStart: z.coerce.number().min(0, { message: 'Valor inválido' }),
+  odometerEnd: z.coerce.number().min(0, { message: 'Valor inválido' }),
+  liters: z.coerce.number().min(0.1, { message: 'Valor inválido' }),
+  pricePerLiter: z.coerce.number().min(0.1, { message: 'Valor inválido' }),
 });
 
-type RefuelingFormValues = z.infer<typeof refuelingFormSchema>;
+type FormData = z.infer<typeof formSchema>;
 
 interface RefuelingFormProps {
   onSuccess?: () => void;
@@ -53,143 +37,117 @@ interface RefuelingFormProps {
 
 const RefuelingForm: React.FC<RefuelingFormProps> = ({ onSuccess }) => {
   const { toast } = useToast();
-  const [totalCost, setTotalCost] = useState(0);
-  const [distance, setDistance] = useState(0);
-  const [efficiency, setEfficiency] = useState(0);
-
-  const form = useForm<RefuelingFormValues>({
-    resolver: zodResolver(refuelingFormSchema),
+  
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      date: new Date(),
       vehicleId: '',
+      date: new Date().toISOString().split('T')[0],
       odometerStart: 0,
       odometerEnd: 0,
       liters: 0,
       pricePerLiter: 0,
     },
   });
-
-  // Calculate derived values
-  useEffect(() => {
-    const liters = form.watch('liters') || 0;
-    const pricePerLiter = form.watch('pricePerLiter') || 0;
-    const odometerStart = form.watch('odometerStart') || 0;
-    const odometerEnd = form.watch('odometerEnd') || 0;
-
-    const calculatedDistance = Math.max(0, odometerEnd - odometerStart);
-    const calculatedCost = liters * pricePerLiter;
-    const calculatedEfficiency = liters > 0 ? calculatedDistance / liters : 0;
-
-    setDistance(calculatedDistance);
-    setTotalCost(calculatedCost);
-    setEfficiency(calculatedEfficiency);
-  }, [form.watch('liters'), form.watch('pricePerLiter'), form.watch('odometerStart'), form.watch('odometerEnd')]);
-
-  const onSubmit = (values: RefuelingFormValues) => {
-    // Ensure all required fields are present (not optional)
-    const refuelingData: Omit<Refueling, "id" | "createdAt" | "totalCost"> = {
-      date: values.date,
-      vehicleId: values.vehicleId,
-      odometerStart: values.odometerStart,
-      odometerEnd: values.odometerEnd,
-      liters: values.liters,
-      pricePerLiter: values.pricePerLiter,
-      totalCost: totalCost,
-    };
-    
-    addRefueling(refuelingData);
-    
-    toast({
-      title: "Abastecimento registrado",
-      description: `Abastecimento de ${values.liters.toFixed(2)}L foi registrado com sucesso!`,
-    });
-    
-    form.reset();
-    
-    if (onSuccess) {
-      onSuccess();
+  
+  const onSubmit = (data: FormData) => {
+    try {
+      // Convert string date to Date object
+      const dateParts = data.date.split('-');
+      const dateObj = new Date(
+        parseInt(dateParts[0]), 
+        parseInt(dateParts[1]) - 1, 
+        parseInt(dateParts[2])
+      );
+      
+      // Validate that end odometer is greater than start
+      if (data.odometerEnd <= data.odometerStart) {
+        form.setError('odometerEnd', {
+          type: 'manual',
+          message: 'O odômetro final deve ser maior que o inicial',
+        });
+        return;
+      }
+      
+      // Add refueling to the database
+      addRefueling({
+        vehicleId: data.vehicleId,
+        date: dateObj,
+        odometerStart: data.odometerStart,
+        odometerEnd: data.odometerEnd,
+        liters: data.liters,
+        pricePerLiter: data.pricePerLiter,
+      });
+      
+      toast({
+        title: "Abastecimento registrado",
+        description: `Abastecimento de ${data.liters} litros adicionado com sucesso.`,
+      });
+      
+      // Reset form and call success callback
+      form.reset();
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao registrar o abastecimento.",
+        variant: "destructive",
+      });
     }
   };
-
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="date"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Data</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP", { locale: ptBR })
-                        ) : (
-                          <span>Selecione uma data</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                      locale={ptBR}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="vehicleId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Veículo</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um veículo" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {vehicles.filter(v => v.active).map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.name} ({vehicle.licensePlate})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="vehicleId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Veículo</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um veículo" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {vehicles.map((vehicle) => (
+                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                      {vehicle.name} ({vehicle.model})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Data</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="odometerStart"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Odômetro Inicial (km)</FormLabel>
+                <FormLabel>Odômetro inicial (km)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.1" {...field} />
+                  <Input type="number" step="0.01" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -201,9 +159,9 @@ const RefuelingForm: React.FC<RefuelingFormProps> = ({ onSuccess }) => {
             name="odometerEnd"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Odômetro Final (km)</FormLabel>
+                <FormLabel>Odômetro final (km)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.1" {...field} />
+                  <Input type="number" step="0.01" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -211,7 +169,7 @@ const RefuelingForm: React.FC<RefuelingFormProps> = ({ onSuccess }) => {
           />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="liters"
@@ -231,7 +189,7 @@ const RefuelingForm: React.FC<RefuelingFormProps> = ({ onSuccess }) => {
             name="pricePerLiter"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Preço por Litro</FormLabel>
+                <FormLabel>Preço por litro (R$)</FormLabel>
                 <FormControl>
                   <Input type="number" step="0.01" {...field} />
                 </FormControl>
@@ -241,26 +199,7 @@ const RefuelingForm: React.FC<RefuelingFormProps> = ({ onSuccess }) => {
           />
         </div>
         
-        <div className="bg-gray-50 p-4 rounded-md">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <p className="text-gray-500">Distância</p>
-              <p className="font-medium">{distance.toFixed(1)} km</p>
-            </div>
-            <div>
-              <p className="text-gray-500">Rendimento</p>
-              <p className="font-medium">{efficiency.toFixed(1)} km/L</p>
-            </div>
-            <div>
-              <p className="text-gray-500">Custo Total</p>
-              <p className="font-medium">{totalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-            </div>
-          </div>
-        </div>
-        
-        <Button type="submit" className="w-full">
-          Registrar Abastecimento
-        </Button>
+        <Button type="submit" className="w-full mt-4">Salvar</Button>
       </form>
     </Form>
   );

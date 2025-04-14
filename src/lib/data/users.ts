@@ -56,6 +56,10 @@ export const updateUserSubscription = (userId: string, isSubscribed: boolean, en
     subscriptionEndDate: endDate,
   };
   
+  console.log(`User subscription updated: ${users[userIndex].name} (${users[userIndex].email})`);
+  console.log(`Subscription status: ${isSubscribed ? 'Active' : 'Inactive'}`);
+  if (endDate) console.log(`Subscription end date: ${endDate.toISOString()}`);
+  
   return users[userIndex];
 };
 
@@ -69,10 +73,34 @@ export const makeUserAdmin = (userId: string, isAdmin: boolean): User | null => 
     isAdmin,
   };
   
+  console.log(`User admin status updated: ${users[userIndex].name} (${users[userIndex].email})`);
+  console.log(`Admin status: ${isAdmin ? 'Admin' : 'Regular user'}`);
+  
   return users[userIndex];
+};
+
+// Get all users (admin function)
+export const getAllUsers = (): User[] => {
+  return [...users];
 };
 
 // For debugging: list all users
 export const listAllUsers = (): User[] => {
   return users;
+};
+
+// Delete user (admin function)
+export const deleteUser = (userId: string): boolean => {
+  const initialLength = users.length;
+  users = users.filter(user => user.id !== userId);
+  
+  const wasDeleted = users.length < initialLength;
+  if (wasDeleted) {
+    console.log(`User with ID ${userId} was deleted`);
+    console.log(`Total users: ${users.length}`);
+  } else {
+    console.log(`No user found with ID ${userId}`);
+  }
+  
+  return wasDeleted;
 };

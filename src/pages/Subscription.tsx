@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, CreditCard, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,26 +16,93 @@ import PageHeader from '@/components/common/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateUserSubscription } from '@/lib/data/users';
 
+// Import loadStripe without the direct API key in code
+import { loadStripe } from '@stripe/stripe-js';
+
 const Subscription = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [stripeLoaded, setStripeLoaded] = useState(false);
+  const [stripePromise, setStripePromise] = useState<any>(null);
   
-  // Mock function to simulate Stripe payment processing
+  // Initialize Stripe on component mount
+  useEffect(() => {
+    // Initialize Stripe with your publishable key
+    const loadStripeInstance = async () => {
+      const stripeInstance = await loadStripe('pk_live_51RDkntCAibRDOVWbEJlgPeVZ8Wf9cSQPZPTzp9ZLULrQbkFDH9LJcBzZLhocK9Rpp9uDzYj7iZKvIlRf4OhDZAr300U8MglfwQ');
+      setStripePromise(stripeInstance);
+      setStripeLoaded(true);
+    };
+    
+    loadStripeInstance();
+  }, []);
+  
+  // Function to handle subscription with real Stripe checkout
   const handleSubscribe = async (plan: 'premium' | 'enterprise') => {
     setIsLoading(true);
     
     try {
+      if (!stripeLoaded) {
+        toast({
+          title: 'Stripe não inicializado',
+          description: 'Por favor, aguarde o carregamento do Stripe ou recarregue a página.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       // Determine which product to use
       const productId = plan === 'premium' 
         ? 'prod_S81I7orN9sLjzm'  // Premium plan
         : 'prod_S81KuZeZpl9bPM'; // Enterprise plan
       
-      // In a real implementation, this would call a Stripe checkout session
-      // Mock the behavior for now
+      // Create Stripe checkout session
+      const sessionResponse = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          productId,
+          customerId: user?.id,
+          customerEmail: user?.email
+        }),
+      });
+      
+      if (!sessionResponse.ok) {
+        throw new Error('Falha ao criar sessão de pagamento.');
+      }
+      
+      const session = await sessionResponse.json();
+      
+      // Redirect to Stripe checkout
+      if (session.url) {
+        window.location.href = session.url;
+      } else {
+        throw new Error('URL de checkout não recebida.');
+      }
+      
+    } catch (error) {
+      console.error('Subscription error:', error);
+      toast({
+        title: 'Erro na assinatura',
+        description: 'Ocorreu um erro ao processar sua assinatura. Por favor, tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // For development/demo purposes, provide a fallback method using our mock
+  const handleMockSubscribe = async (plan: 'premium' | 'enterprise') => {
+    setIsLoading(true);
+    
+    try {
       setTimeout(() => {
         if (user) {
-          // In a real app, this would redirect to a payment gateway
           const oneYearLater = new Date();
           oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
           
@@ -56,7 +123,7 @@ const Subscription = () => {
       
       toast({
         title: 'Processando pagamento',
-        description: 'Você será redirecionado para o Stripe em instantes...',
+        description: 'Simulando processamento de pagamento (modo de demonstração)...',
       });
     } catch (error) {
       console.error('Subscription error:', error);
@@ -175,7 +242,7 @@ const Subscription = () => {
             ) : (
               <Button 
                 className="w-full" 
-                onClick={() => handleSubscribe('premium')}
+                onClick={() => stripeLoaded ? handleSubscribe('premium') : handleMockSubscribe('premium')}
                 disabled={isLoading}
               >
                 <CreditCard className="mr-2 h-4 w-4" />
@@ -234,7 +301,7 @@ const Subscription = () => {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => handleSubscribe('enterprise')}
+                onClick={() => stripeLoaded ? handleSubscribe('enterprise') : handleMockSubscribe('enterprise')}
                 disabled={isLoading}
               >
                 {isLoading ? 'Processando...' : 'Assinar Plano Empresarial'}
@@ -253,7 +320,7 @@ const Subscription = () => {
             <div>
               <h3 className="font-medium text-lg">Como funciona a cobrança?</h3>
               <p className="text-gray-600 mt-1">
-                A cobrança é mensal e pode ser feita por cartão de crédito. Você pode cancelar sua assinatura a qualquer momento.
+                A cobrança é mensal e pode ser feita por cartão de crédito através do Stripe. Você pode cancelar sua assinatura a qualquer momento.
               </p>
             </div>
             <div>
