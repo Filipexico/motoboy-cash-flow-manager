@@ -10,6 +10,13 @@ interface SubscriptionData {
   subscription_end: string | null;
 }
 
+interface StripeResponse {
+  subscribed?: boolean;
+  subscription_tier?: string;
+  subscription_end?: string;
+  error?: string;
+}
+
 export const useSubscription = () => {
   const { user, checkSubscription } = useAuth();
   const { toast } = useToast();
@@ -27,7 +34,7 @@ export const useSubscription = () => {
       console.log('Manually checking subscription status...');
       
       try {
-        const { data, error } = await supabase.functions.invoke('check-subscription');
+        const { data, error } = await supabase.functions.invoke<StripeResponse>('check-subscription');
         
         if (error) {
           console.error('Error checking subscription:', error);
@@ -43,15 +50,17 @@ export const useSubscription = () => {
         
         console.log('Subscription check result:', data);
         
-        const subscriptionData: SubscriptionData = {
-          subscribed: data?.subscribed === true,
-          subscription_tier: typeof data?.subscription_tier === 'string' ? data.subscription_tier : null,
-          subscription_end: typeof data?.subscription_end === 'string' ? data.subscription_end : null
-        };
-        
-        setSubscription(subscriptionData);
-        
-        await checkSubscription();
+        if (data) {
+          const subscriptionData: SubscriptionData = {
+            subscribed: Boolean(data.subscribed),
+            subscription_tier: data.subscription_tier || null,
+            subscription_end: data.subscription_end || null
+          };
+          
+          setSubscription(subscriptionData);
+          
+          await checkSubscription();
+        }
       } catch (error: any) {
         console.error('Error checking subscription:', error);
         await fallbackSubscriptionCheck(user.id);
@@ -122,7 +131,7 @@ export const useSubscription = () => {
       console.log(`Creating checkout session for plan: ${plan}`);
       
       try {
-        const { data, error } = await supabase.functions.invoke('create-checkout', {
+        const { data, error } = await supabase.functions.invoke<{ url: string }>('create-checkout', {
           body: { planType: plan }
         });
         
@@ -215,7 +224,7 @@ export const useSubscription = () => {
       console.log('Opening customer portal...');
       
       try {
-        const { data, error } = await supabase.functions.invoke('customer-portal');
+        const { data, error } = await supabase.functions.invoke<{ url: string }>('customer-portal');
         
         if (error) {
           console.error('Error opening customer portal:', error);
