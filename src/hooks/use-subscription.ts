@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -208,6 +209,52 @@ export const useSubscription = () => {
   const subscriptionTier = subscription?.subscription_tier || user?.subscriptionTier || null;
   const subscriptionEnd = subscription?.subscription_end || user?.subscriptionEnd || null;
 
+  // Define the openCustomerPortal function properly
+  const openPortal = async () => {
+    if (!supabase) {
+      toast({
+        title: 'Erro de configuração',
+        description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      console.log('Opening customer portal...');
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+      
+      if (error) {
+        console.error('Error opening customer portal:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
+          variant: 'destructive',
+        });
+        throw new Error(error.message);
+      }
+      
+      console.log('Customer portal session created:', data);
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No portal URL returned');
+      }
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível abrir o portal de gerenciamento da assinatura.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     isLoading,
     isSubscribed,
@@ -215,49 +262,6 @@ export const useSubscription = () => {
     subscriptionEnd,
     checkSubscriptionStatus,
     handleSubscribe,
-    openCustomerPortal: () => {
-      if (!supabase) {
-        toast({
-          title: 'Erro de configuração',
-          description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
-          variant: 'destructive',
-        });
-        return Promise.resolve();
-      }
-      
-      setIsLoading(true);
-      
-      try {
-        console.log('Opening customer portal...');
-        const { data, error } = await supabase.functions.invoke('customer-portal');
-        
-        if (error) {
-          console.error('Error opening customer portal:', error);
-          toast({
-            title: 'Erro',
-            description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
-            variant: 'destructive',
-          });
-          throw new Error(error.message);
-        }
-        
-        console.log('Customer portal session created:', data);
-        
-        if (data?.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error('No portal URL returned');
-        }
-      } catch (error) {
-        console.error('Error opening customer portal:', error);
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível abrir o portal de gerenciamento da assinatura.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    openCustomerPortal: openPortal
   };
 };

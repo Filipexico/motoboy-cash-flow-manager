@@ -2,22 +2,25 @@
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '@/types';
 
+// Helper to format date to ISO string
+const formatDate = (date: Date): string => date.toISOString();
+
 // Sample users data
 export let users: User[] = [
   {
     id: uuidv4(),
     email: 'admin@example.com',
     name: 'Administrador',
-    createdAt: new Date('2023-01-01'),
+    createdAt: formatDate(new Date('2023-01-01')),
     isAdmin: true,
     isSubscribed: true,
-    subscriptionEndDate: new Date('2099-12-31'),
+    subscriptionEndDate: formatDate(new Date('2099-12-31')),
   },
   {
     id: uuidv4(),
     email: 'user@example.com',
     name: 'Usuário Comum',
-    createdAt: new Date('2023-02-15'),
+    createdAt: formatDate(new Date('2023-02-15')),
     isAdmin: false,
     isSubscribed: false,
   },
@@ -34,7 +37,7 @@ export const createUser = (email: string, name: string): User => {
     id: uuidv4(),
     email,
     name,
-    createdAt: new Date(),
+    createdAt: formatDate(new Date()),
     isAdmin: false,
     isSubscribed: false,
   };
@@ -53,7 +56,7 @@ export const updateUserSubscription = (userId: string, isSubscribed: boolean, en
   users[userIndex] = {
     ...users[userIndex],
     isSubscribed,
-    subscriptionEndDate: endDate,
+    subscriptionEndDate: endDate ? formatDate(endDate) : undefined,
   };
   
   console.log(`User subscription updated: ${users[userIndex].name} (${users[userIndex].email})`);

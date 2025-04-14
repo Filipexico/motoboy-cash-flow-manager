@@ -34,7 +34,14 @@ const Incomes = () => {
       // Update existing income
       const updatedList = incomeList.map(item => 
         item.id === editingIncome.id 
-          ? { ...item, ...values } 
+          ? { 
+              ...item, 
+              companyId: values.companyId,
+              amount: values.amount,
+              weekStartDate: values.weekStartDate instanceof Date ? values.weekStartDate.toISOString() : values.weekStartDate,
+              weekEndDate: values.weekEndDate instanceof Date ? values.weekEndDate.toISOString() : values.weekEndDate,
+              description: values.description,
+            } 
           : item
       );
       setIncomeList(updatedList);
@@ -47,8 +54,8 @@ const Incomes = () => {
       const newIncome = addIncome({
         companyId: values.companyId,
         amount: values.amount,
-        weekStartDate: values.weekStartDate,
-        weekEndDate: values.weekEndDate,
+        weekStartDate: values.weekStartDate instanceof Date ? values.weekStartDate.toISOString() : values.weekStartDate,
+        weekEndDate: values.weekEndDate instanceof Date ? values.weekEndDate.toISOString() : values.weekEndDate,
         description: values.description,
       });
       setIncomeList([...incomeList, newIncome]);

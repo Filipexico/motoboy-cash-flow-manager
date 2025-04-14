@@ -78,6 +78,15 @@ const Expenses = () => {
     });
   };
   
+  // Handle deleting an expense
+  const handleDeleteExpense = (id: string) => {
+    setExpenseList(prevExpenses => prevExpenses.filter(expense => expense.id !== id));
+    toast({
+      title: 'Despesa removida',
+      description: 'A despesa foi removida com sucesso.',
+    });
+  };
+  
   // Columns for PDF export
   const pdfColumns = [
     { header: 'Data', accessor: 'date', format: (value: string) => format(new Date(value), 'dd/MM/yyyy') },
@@ -192,13 +201,7 @@ const Expenses = () => {
           <ExpenseList 
             expenses={filteredExpenses} 
             categories={expenseCategories}
-            onDelete={(id) => {
-              setExpenseList(prevExpenses => prevExpenses.filter(expense => expense.id !== id));
-              toast({
-                title: 'Despesa removida',
-                description: 'A despesa foi removida com sucesso.',
-              });
-            }}
+            onDelete={handleDeleteExpense}
           />
         </TabsContent>
         

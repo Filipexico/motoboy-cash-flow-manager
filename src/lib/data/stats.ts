@@ -10,17 +10,21 @@ export const calculateDashboardStats = (
   periodEndDate: Date
 ): DashboardStats => {
   // Filter data for the given period
-  const periodIncomes = incomes.filter(income => 
-    income.weekEndDate >= periodStartDate && income.weekStartDate <= periodEndDate
-  );
+  const periodIncomes = incomes.filter(income => {
+    const incomeWeekEnd = new Date(income.weekEndDate);
+    const incomeWeekStart = new Date(income.weekStartDate);
+    return incomeWeekEnd >= periodStartDate && incomeWeekStart <= periodEndDate;
+  });
   
-  const periodExpenses = expenses.filter(expense => 
-    expense.date >= periodStartDate && expense.date <= periodEndDate
-  );
+  const periodExpenses = expenses.filter(expense => {
+    const expenseDate = new Date(expense.date);
+    return expenseDate >= periodStartDate && expenseDate <= periodEndDate;
+  });
   
-  const periodRefuelings = refuelings.filter(refueling => 
-    refueling.date >= periodStartDate && refueling.date <= periodEndDate
-  );
+  const periodRefuelings = refuelings.filter(refueling => {
+    const refuelingDate = new Date(refueling.date);
+    return refuelingDate >= periodStartDate && refuelingDate <= periodEndDate;
+  });
   
   // Calculate totals
   const totalIncome = periodIncomes.reduce((sum, income) => sum + income.amount, 0);

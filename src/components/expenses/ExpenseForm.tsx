@@ -47,7 +47,7 @@ const expenseFormSchema = z.object({
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 interface ExpenseFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (data: Omit<Expense, "id" | "createdAt">) => void;
 }
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess }) => {
@@ -69,7 +69,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess }) => {
       description: values.description,
       amount: values.amount,
       categoryId: values.categoryId,
-      date: values.date,
+      date: values.date.toISOString(),
     };
     
     addExpense(expenseData);
@@ -82,7 +82,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onSuccess }) => {
     form.reset();
     
     if (onSuccess) {
-      onSuccess();
+      onSuccess(expenseData);
     }
   };
 

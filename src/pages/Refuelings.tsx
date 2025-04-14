@@ -39,7 +39,7 @@ const Refuelings = () => {
     { 
       header: 'Data', 
       accessor: 'date',
-      format: (value: Date) => format(new Date(value), 'dd/MM/yyyy', { locale: ptBR })
+      format: (value: string) => format(new Date(value), 'dd/MM/yyyy', { locale: ptBR })
     },
     { 
       header: 'Veículo', 
@@ -83,7 +83,7 @@ const Refuelings = () => {
       distance,
       efficiency,
     };
-  }).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div>
@@ -125,7 +125,7 @@ const Refuelings = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {refuelings.sort((a, b) => b.date.getTime() - a.date.getTime()).map((refueling) => {
+              {refuelings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((refueling) => {
                 const distance = refueling.odometerEnd - refueling.odometerStart;
                 const efficiency = distance > 0 ? (distance / refueling.liters).toFixed(1) : '0';
                 

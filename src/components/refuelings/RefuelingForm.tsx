@@ -52,7 +52,7 @@ const RefuelingForm: React.FC<RefuelingFormProps> = ({ onSuccess }) => {
   
   const onSubmit = (data: FormData) => {
     try {
-      // Convert string date to Date object
+      // Convert string date to Date object for formatting
       const dateParts = data.date.split('-');
       const dateObj = new Date(
         parseInt(dateParts[0]), 
@@ -69,10 +69,10 @@ const RefuelingForm: React.FC<RefuelingFormProps> = ({ onSuccess }) => {
         return;
       }
       
-      // Add refueling to the database
+      // Add refueling to the database - pass the date as a string
       addRefueling({
         vehicleId: data.vehicleId,
-        date: dateObj,
+        date: dateObj.toISOString(),
         odometerStart: data.odometerStart,
         odometerEnd: data.odometerEnd,
         liters: data.liters,
