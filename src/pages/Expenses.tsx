@@ -1,223 +1,188 @@
 
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { expenses, expenseCategories, addExpense, deleteExpense } from '@/lib/mock-data';
+import { Expense, ExpenseCategory } from '@/types';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
+
+import PageHeader from '@/components/common/PageHeader';
+import ExpenseForm from '@/components/expenses/ExpenseForm';
+import ExpenseList from '@/components/expenses/ExpenseList';
 import { 
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from '@/components/ui/sheet';
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import ExpenseList from '@/components/expenses/ExpenseList';
-import ExpenseForm from '@/components/expenses/ExpenseForm';
-import PdfExportButton from '@/components/common/PdfExportButton';
-import PageHeader from '@/components/common/PageHeader';
-import { expenses, expenseCategories, vehicles } from '@/lib/mock-data';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { Expense, ExpenseCategory, Vehicle } from '@/types';
+import { Button } from '@/components/ui/button';
 
 const Expenses = () => {
   const [expenseList, setExpenseList] = useState<Expense[]>(expenses);
+  const [categories] = useState<ExpenseCategory[]>(expenseCategories);
   const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterVehicle, setFilterVehicle] = useState<string>('all');
-  const [filterPeriod, setFilterPeriod] = useState<string>('all');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { user } = useAuth();
+  const [dateSort, setDateSort] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
   
-  // Filter expenses based on selected filters
-  const filteredExpenses = expenseList.filter(expense => {
-    const categoryMatch = filterCategory === 'all' || expense.categoryId === filterCategory;
-    const vehicleMatch = filterVehicle === 'all' || expense.vehicleId === filterVehicle;
-    
-    let periodMatch = true;
-    const expenseDate = new Date(expense.date);
-    const currentDate = new Date();
-    
-    if (filterPeriod === 'month') {
-      periodMatch = (
-        expenseDate.getMonth() === currentDate.getMonth() &&
-        expenseDate.getFullYear() === currentDate.getFullYear()
-      );
-    } else if (filterPeriod === 'year') {
-      periodMatch = expenseDate.getFullYear() === currentDate.getFullYear();
-    }
-    
-    return categoryMatch && vehicleMatch && periodMatch;
-  });
+  // Apply filters and sorting
+  const filteredExpenses = expenseList
+    .filter(expense => 
+      filterCategory === 'all' ? true : expense.categoryId === filterCategory
+    )
+    .sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateSort === 'asc' ? dateA - dateB : dateB - dateA;
+    });
   
-  // Calculate total expenses
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Calculate total for filtered expenses
+  const filteredTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   
-  // Handle adding a new expense
-  const handleAddExpense = (data: Omit<Expense, "id" | "createdAt">) => {
-    const newExpense: Expense = {
-      id: `exp-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      ...data,
-    };
-    
-    setExpenseList(prev => [newExpense, ...prev]);
-    setIsDialogOpen(false);
+  // Group expenses by month
+  const groupedExpenses = filteredExpenses.reduce((groups, expense) => {
+    const month = format(new Date(expense.date), 'MMMM yyyy', { locale: ptBR });
+    if (!groups[month]) groups[month] = [];
+    groups[month].push(expense);
+    return groups;
+  }, {} as Record<string, Expense[]>);
+  
+  // Calculate monthly totals
+  const monthlyTotals = Object.entries(groupedExpenses).reduce((totals, [month, expenses]) => {
+    totals[month] = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    return totals;
+  }, {} as Record<string, number>);
+  
+  // Handle form submission
+  const handleSubmit = (formData: Omit<Expense, 'id'>) => {
+    const newExpense = addExpense(formData);
+    setExpenseList([...expenseList, newExpense]);
     
     toast({
-      title: 'Despesa adicionada',
-      description: 'A despesa foi adicionada com sucesso.',
+      title: "Despesa adicionada",
+      description: "Sua despesa foi registrada com sucesso!",
     });
   };
   
-  // Handle deleting an expense
-  const handleDeleteExpense = (id: string) => {
-    setExpenseList(prevExpenses => prevExpenses.filter(expense => expense.id !== id));
+  // Handle expense deletion
+  const handleDelete = (id: string) => {
+    deleteExpense(id);
+    setExpenseList(expenseList.filter(expense => expense.id !== id));
+    
     toast({
-      title: 'Despesa removida',
-      description: 'A despesa foi removida com sucesso.',
+      title: "Despesa removida",
+      description: "A despesa foi removida com sucesso.",
     });
   };
-  
-  // Columns for PDF export
-  const pdfColumns = [
-    { header: 'Data', accessor: 'date', format: (value: string) => format(new Date(value), 'dd/MM/yyyy') },
-    { header: 'Categoria', accessor: 'categoryId', format: (value: string) => {
-      const category = expenseCategories.find(cat => cat.id === value);
-      return category ? category.name : 'Categoria Desconhecida';
-    }},
-    { header: 'Veículo', accessor: 'vehicleId', format: (value: string) => {
-      const vehicle = vehicles.find(v => v.id === value) as Vehicle;
-      return vehicle ? (vehicle.model || 'Veículo Desconhecido') : 'Veículo Desconhecido';
-    }},
-    { header: 'Descrição', accessor: 'description' },
-    { header: 'Valor (R$)', accessor: 'amount', format: (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }
-  ];
   
   return (
     <div>
       <PageHeader 
-        title="Despesas"
-        description="Gerencie todas as suas despesas"
-      >
-        <div className="flex flex-col sm:flex-row gap-2">
-          {user?.isSubscribed && (
-            <PdfExportButton
-              data={filteredExpenses}
-              columns={pdfColumns}
-              fileName="despesas"
-              title="Relatório de Despesas"
-              subtitle={`Total: ${totalExpenses.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
-            />
-          )}
-          
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Despesa
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Adicionar Despesa</DialogTitle>
-                <DialogDescription>
-                  Adicione uma nova despesa ao seu controle financeiro.
-                </DialogDescription>
-              </DialogHeader>
-              <ExpenseForm 
-                onSuccess={handleAddExpense} 
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </PageHeader>
+        title="Despesas" 
+        description="Gerencie e acompanhe suas despesas"
+        actionLabel="Nova Despesa"
+        actionIcon="plus"
+        onAction={() => document.getElementById('add-expense-trigger')?.click()}
+      />
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Categoria</label>
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger>
+      <div className="mb-6 flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Select 
+            value={filterCategory} 
+            onValueChange={setFilterCategory}
+          >
+            <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filtrar por categoria" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as categorias</SelectItem>
-              {expenseCategories.map(category => (
+              {categories.map(category => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium mb-1">Veículo</label>
-          <Select value={filterVehicle} onValueChange={setFilterVehicle}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filtrar por veículo" />
+          
+          <Select 
+            value={dateSort} 
+            onValueChange={(value) => setDateSort(value as 'asc' | 'desc')}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Ordenar por data" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os veículos</SelectItem>
-              {vehicles.map(vehicle => (
-                <SelectItem key={vehicle.id} value={vehicle.id}>
-                  {vehicle.model}
-                </SelectItem>
-              ))}
+              <SelectItem value="desc">Mais recentes primeiro</SelectItem>
+              <SelectItem value="asc">Mais antigas primeiro</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
-        <div>
-          <label className="block text-sm font-medium mb-1">Período</label>
-          <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filtrar por período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todo período</SelectItem>
-              <SelectItem value="month">Este mês</SelectItem>
-              <SelectItem value="year">Este ano</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="text-right">
+          <p className="text-lg font-semibold">
+            Total: {filteredTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </p>
         </div>
       </div>
       
-      <Tabs defaultValue="list">
-        <TabsList>
-          <TabsTrigger value="list">Lista</TabsTrigger>
-          <TabsTrigger value="summary">Resumo</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="list" className="mt-6">
-          <ExpenseList 
-            expenses={filteredExpenses} 
-            categories={expenseCategories}
-            onDelete={handleDeleteExpense}
-          />
-        </TabsContent>
-        
-        <TabsContent value="summary" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-medium mb-3">Total por Categoria</h3>
-              {/* Category summary table here */}
+      <div className="space-y-8">
+        {Object.entries(groupedExpenses).map(([month, monthExpenses]) => (
+          <div key={month} className="border rounded-lg overflow-hidden">
+            <div className="bg-gray-50 p-4 flex justify-between items-center border-b">
+              <h3 className="text-lg font-medium capitalize">{month}</h3>
+              <span className="font-semibold">
+                {monthlyTotals[month].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </span>
             </div>
-            <div>
-              <h3 className="text-lg font-medium mb-3">Total por Veículo</h3>
-              {/* Vehicle summary table here */}
-            </div>
+            
+            <ExpenseList 
+              expenses={monthExpenses} 
+              categories={categories} 
+              onDelete={handleDelete}
+            />
           </div>
-        </TabsContent>
-      </Tabs>
+        ))}
+        
+        {Object.keys(groupedExpenses).length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Nenhuma despesa encontrada.</p>
+            <Button 
+              className="mt-4" 
+              variant="outline"
+              onClick={() => document.getElementById('add-expense-trigger')?.click()}
+            >
+              Adicionar despesa
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button id="add-expense-trigger" className="hidden">Adicionar Despesa</Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="sm:max-w-md w-full overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Adicionar Despesa</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6">
+            <SheetClose asChild>
+              <ExpenseForm 
+                categories={categories} 
+                onSubmit={handleSubmit} 
+              />
+            </SheetClose>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

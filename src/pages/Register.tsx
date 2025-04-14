@@ -18,13 +18,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
+  name: z.string().min(1, 'Nome é obrigatório'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-  confirmPassword: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'As senhas não coincidem',
-  path: ['confirmPassword'],
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -47,23 +43,16 @@ const Register = () => {
       name: '',
       email: '',
       password: '',
-      confirmPassword: '',
     },
   });
   
   const onSubmit = async (data: RegisterFormValues) => {
     try {
-      const success = await register(data.email, data.password, data.name);
-      if (success) {
-        navigate('/');
-      }
+      await register(data.email, data.password, data.name);
+      navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
-      toast({
-        title: 'Erro no cadastro',
-        description: 'Falha ao criar sua conta. Por favor, tente novamente.',
-        variant: 'destructive',
-      });
+      // Error is already handled in the register function with toast
     }
   };
   
@@ -72,7 +61,7 @@ const Register = () => {
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-blue-700">Moto<span className="text-blue-500">Controle</span></h1>
-          <p className="mt-2 text-gray-600">Crie sua conta para começar</p>
+          <p className="mt-2 text-gray-600">Crie sua conta</p>
         </div>
         
         <Form {...form}>
@@ -85,7 +74,8 @@ const Register = () => {
                   <FormLabel>Nome</FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="Seu nome completo" 
+                      placeholder="Seu nome" 
+                      autoComplete="name"
                       {...field} 
                     />
                   </FormControl>
@@ -119,25 +109,6 @@ const Register = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="******" 
-                      type="password" 
-                      autoComplete="new-password"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirme a Senha</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="******" 

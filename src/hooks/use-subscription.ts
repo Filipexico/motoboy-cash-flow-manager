@@ -2,6 +2,14 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
+
+// Supabase configuration - using the provided keys
+const SUPABASE_URL = 'https://qewlxnjqojxprkodfdqf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFld2x4bmpxb2p4cHJrb2RmZHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MjE0MTIsImV4cCI6MjA2MDE5NzQxMn0.lADhLBSYqfMPejc840DUUI-ylpihgiuHvHYYiHYnkKQ';
+
+// Create Supabase client
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export const useSubscription = () => {
   const { user, checkSubscription } = useAuth();
@@ -13,28 +21,13 @@ export const useSubscription = () => {
     subscription_end: string | null;
   }>(null);
   
-  // Check for environment variables
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  
-  // Only create the client if URL is available
-  let supabase = null;
-  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-    try {
-      const { createClient } = require('@supabase/supabase-js');
-      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch (error) {
-      console.error('Error initializing Supabase client:', error);
-    }
-  }
-  
   // Check subscription status
   const checkSubscriptionStatus = async () => {
     if (!user || !supabase) {
       if (!supabase) {
         toast({
           title: 'Configuração incompleta',
-          description: 'As variáveis de ambiente do Supabase não estão configuradas corretamente.',
+          description: 'Não foi possível conectar ao Supabase. Verifique a configuração.',
           variant: 'destructive',
         });
       }
@@ -80,7 +73,7 @@ export const useSubscription = () => {
     if (!supabase) {
       toast({
         title: 'Erro de configuração',
-        description: 'Sistema de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
+        description: 'Sistema de assinaturas não disponível. Verifique a conexão com o Supabase.',
         variant: 'destructive',
       });
       return;
@@ -128,7 +121,7 @@ export const useSubscription = () => {
     if (!supabase) {
       toast({
         title: 'Erro de configuração',
-        description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
+        description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique a conexão com o Supabase.',
         variant: 'destructive',
       });
       return;
@@ -209,52 +202,6 @@ export const useSubscription = () => {
   const subscriptionTier = subscription?.subscription_tier || user?.subscriptionTier || null;
   const subscriptionEnd = subscription?.subscription_end || user?.subscriptionEnd || null;
 
-  // Define the openCustomerPortal function properly
-  const openPortal = async () => {
-    if (!supabase) {
-      toast({
-        title: 'Erro de configuração',
-        description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      console.log('Opening customer portal...');
-      const { data, error } = await supabase.functions.invoke('customer-portal');
-      
-      if (error) {
-        console.error('Error opening customer portal:', error);
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
-          variant: 'destructive',
-        });
-        throw new Error(error.message);
-      }
-      
-      console.log('Customer portal session created:', data);
-      
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No portal URL returned');
-      }
-    } catch (error) {
-      console.error('Error opening customer portal:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível abrir o portal de gerenciamento da assinatura.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return {
     isLoading,
     isSubscribed,
@@ -262,6 +209,6 @@ export const useSubscription = () => {
     subscriptionEnd,
     checkSubscriptionStatus,
     handleSubscribe,
-    openCustomerPortal: openPortal
+    openCustomerPortal
   };
 };

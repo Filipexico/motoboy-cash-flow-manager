@@ -7,18 +7,16 @@ import { useToast } from '@/hooks/use-toast';
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Check for environment variables and provide fallbacks for development
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Supabase configuration - using the provided keys
+const SUPABASE_URL = 'https://qewlxnjqojxprkodfdqf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFld2x4bmpxb2p4cHJrb2RmZHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MjE0MTIsImV4cCI6MjA2MDE5NzQxMn0.lADhLBSYqfMPejc840DUUI-ylpihgiuHvHYYiHYnkKQ';
 
 // Log for debugging
 console.log('Supabase URL:', SUPABASE_URL);
 console.log('Supabase Key length:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.length : 0);
 
-// Supabase client - only create if URL is available
-const supabase = SUPABASE_URL 
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+// Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -31,11 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) {
       console.error('Supabase client not initialized. Missing environment variables.');
       toast({
-        title: 'Error de configuração',
+        title: 'Erro de configuração',
         description: 'Falha ao conectar com o Supabase. Verifique as variáveis de ambiente.',
         variant: 'destructive',
       });
       setIsLoading(false);
+    } else {
+      console.log('Supabase client initialized successfully');
     }
   }, [toast]);
   

@@ -14,6 +14,8 @@ export let users: User[] = [
     createdAt: formatDate(new Date('2023-01-01')),
     isAdmin: true,
     isSubscribed: true,
+    subscriptionTier: 'premium',
+    subscriptionEnd: formatDate(new Date('2099-12-31')),
     subscriptionEndDate: formatDate(new Date('2099-12-31')),
   },
   {
@@ -23,6 +25,9 @@ export let users: User[] = [
     createdAt: formatDate(new Date('2023-02-15')),
     isAdmin: false,
     isSubscribed: false,
+    subscriptionTier: null,
+    subscriptionEnd: null,
+    subscriptionEndDate: null,
   },
 ];
 
@@ -40,6 +45,9 @@ export const createUser = (email: string, name: string): User => {
     createdAt: formatDate(new Date()),
     isAdmin: false,
     isSubscribed: false,
+    subscriptionTier: null,
+    subscriptionEnd: null,
+    subscriptionEndDate: null,
   };
   
   users.push(newUser);
@@ -56,7 +64,8 @@ export const updateUserSubscription = (userId: string, isSubscribed: boolean, en
   users[userIndex] = {
     ...users[userIndex],
     isSubscribed,
-    subscriptionEndDate: endDate ? formatDate(endDate) : undefined,
+    subscriptionEnd: endDate ? formatDate(endDate) : null,
+    subscriptionEndDate: endDate ? formatDate(endDate) : null,
   };
   
   console.log(`User subscription updated: ${users[userIndex].name} (${users[userIndex].email})`);
