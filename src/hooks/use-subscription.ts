@@ -36,7 +36,11 @@ export const useSubscription = () => {
             description: 'Não foi possível verificar o status da sua assinatura: ' + error.message,
             variant: 'destructive',
           });
-          throw error;
+          
+          // Fallback: Verificar diretamente no banco de dados
+          await fallbackSubscriptionCheck(user.id);
+          
+          return;
         }
         
         console.log('Subscription check result:', data);
@@ -46,17 +50,13 @@ export const useSubscription = () => {
         await checkSubscription();
       } catch (error: any) {
         console.error('Error checking subscription:', error);
-        // Se a função não existe, estamos em ambiente de desenvolvimento/teste
-        // Simular um resultado de assinatura inativa para continuar funcionando
-        setSubscription({
-          subscribed: false,
-          subscription_tier: null,
-          subscription_end: null
-        });
+        
+        // Fallback: Verificar diretamente no banco de dados
+        await fallbackSubscriptionCheck(user.id);
         
         toast({
           title: 'Aviso',
-          description: 'Sistema em modo de teste. Funções de assinatura estão desativadas.',
+          description: 'Verificação de assinatura alternativa realizada devido a uma limitação técnica.',
         });
       }
       
@@ -69,6 +69,48 @@ export const useSubscription = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Fallback para verificar assinatura diretamente no banco de dados
+  const fallbackSubscriptionCheck = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('subscribers')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Fallback subscription check error:', error);
+        setSubscription({
+          subscribed: false,
+          subscription_tier: null,
+          subscription_end: null
+        });
+        return;
+      }
+      
+      if (data) {
+        setSubscription({
+          subscribed: data.subscribed || false,
+          subscription_tier: data.subscription_tier,
+          subscription_end: data.subscription_end
+        });
+      } else {
+        setSubscription({
+          subscribed: false,
+          subscription_tier: null,
+          subscription_end: null
+        });
+      }
+    } catch (error) {
+      console.error('Fallback subscription check error:', error);
+      setSubscription({
+        subscribed: false,
+        subscription_tier: null,
+        subscription_end: null
+      });
     }
   };
   
@@ -91,7 +133,7 @@ export const useSubscription = () => {
             description: 'Ocorreu um erro ao processar sua assinatura: ' + error.message,
             variant: 'destructive',
           });
-          throw error;
+          return;
         }
         
         console.log('Checkout session created:', data);
@@ -104,11 +146,14 @@ export const useSubscription = () => {
       } catch (error: any) {
         console.error('Error creating checkout session:', error);
         
-        // Se a função não existe, estamos em ambiente de desenvolvimento/teste
+        // Funcionalidade simulada para teste/desenvolvimento
         toast({
-          title: 'Modo de teste',
-          description: 'Funções Stripe não estão configuradas neste ambiente. Em produção, você seria redirecionado para a página de pagamento.',
+          title: 'Ambiente de teste',
+          description: 'As Edge Functions do Stripe ainda não foram implantadas. Em produção, você seria redirecionado para a página de pagamento do Stripe.',
         });
+        
+        // Simular uma assinatura de teste para desenvolvimento
+        await simulateTestSubscription(plan);
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
@@ -119,6 +164,53 @@ export const useSubscription = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Simular uma assinatura de teste para desenvolvimento
+  const simulateTestSubscription = async (plan: 'premium' | 'enterprise') => {
+    if (!user) return;
+    
+    try {
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1); // Adiciona 1 mês
+      
+      // Atualizar o registro na tabela subscribers
+      const { error } = await supabase.from('subscribers').upsert({
+        user_id: user.id,
+        email: user.email,
+        subscribed: true,
+        subscription_tier: plan,
+        subscription_end: endDate.toISOString(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      
+      if (error) {
+        console.error('Error simulating subscription:', error);
+        throw error;
+      }
+      
+      // Atualizar o estado e exibir toast de sucesso
+      setSubscription({
+        subscribed: true,
+        subscription_tier: plan,
+        subscription_end: endDate.toISOString()
+      });
+      
+      toast({
+        title: 'Assinatura simulada',
+        description: `Assinatura ${plan} simulada com sucesso para fins de teste.`,
+      });
+      
+      // Atualizar o contexto de autenticação
+      await checkSubscription();
+    } catch (error) {
+      console.error('Error simulating subscription:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível simular a assinatura.',
+        variant: 'destructive',
+      });
     }
   };
   
@@ -139,7 +231,7 @@ export const useSubscription = () => {
             description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
             variant: 'destructive',
           });
-          throw error;
+          return;
         }
         
         console.log('Customer portal session created:', data);
@@ -152,10 +244,9 @@ export const useSubscription = () => {
       } catch (error: any) {
         console.error('Error opening customer portal:', error);
         
-        // Se a função não existe, estamos em ambiente de desenvolvimento/teste
         toast({
-          title: 'Modo de teste',
-          description: 'Portal do cliente Stripe não está configurado neste ambiente.',
+          title: 'Ambiente de teste',
+          description: 'As Edge Functions do Stripe ainda não foram implantadas. Em produção, você seria redirecionado para o portal de gerenciamento de assinatura do Stripe.',
         });
       }
     } catch (error) {

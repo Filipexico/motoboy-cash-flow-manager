@@ -1,7 +1,8 @@
 
-import React, { useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import PageHeader from '@/components/common/PageHeader';
 import SubscriptionPlan from '@/components/subscription/SubscriptionPlan';
 import SubscriptionDetails from '@/components/subscription/SubscriptionDetails';
@@ -43,6 +44,28 @@ const Subscription = () => {
     setupTablesIfNeeded();
   }, []);
 
+  // Verificar se as edge functions do Stripe estão implantadas
+  const [edgeFunctionsDeployed, setEdgeFunctionsDeployed] = useState(false);
+  
+  useEffect(() => {
+    const checkEdgeFunctions = async () => {
+      try {
+        // Tenta fazer uma chamada OPTIONS para verificar se a função existe
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL || 'https://qewlxnjqojxprkodfdqf.supabase.co'}/functions/v1/check-subscription`,
+          { method: 'OPTIONS' }
+        );
+        
+        setEdgeFunctionsDeployed(response.status !== 404);
+      } catch (error) {
+        console.error('Erro ao verificar edge functions:', error);
+        setEdgeFunctionsDeployed(false);
+      }
+    };
+    
+    checkEdgeFunctions();
+  }, []);
+
   return (
     <div>
       <PageHeader
@@ -67,6 +90,22 @@ const Subscription = () => {
           )}
         </Button>
       </PageHeader>
+
+      {!edgeFunctionsDeployed && (
+        <Alert className="mb-6 border-amber-400 bg-amber-50">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <AlertTitle className="text-amber-800">Configuração necessária</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            <p className="mb-2">Para habilitar pagamentos com Stripe, você precisa configurar as Edge Functions no Supabase:</p>
+            <ol className="list-decimal pl-5 space-y-1">
+              <li>Implante as três Edge Functions (check-subscription, create-checkout, customer-portal) no Supabase</li>
+              <li>Configure o STRIPE_SECRET_KEY nas variáveis de ambiente do Supabase</li>
+              <li>Habilite o CORS para permitir requisições do seu domínio</li>
+            </ol>
+            <p className="mt-2">Enquanto isso, o sistema funcionará em modo de simulação para desenvolvimento.</p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {subscriptionPlans.map((plan) => (
