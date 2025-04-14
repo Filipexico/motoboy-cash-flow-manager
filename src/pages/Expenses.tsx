@@ -26,7 +26,7 @@ import { expenses, expenseCategories, vehicles } from '@/lib/mock-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Expense } from '@/types';
+import { Expense, Vehicle } from '@/types';
 
 const Expenses = () => {
   const [expenseList, setExpenseList] = useState<Expense[]>(expenses);
@@ -86,8 +86,8 @@ const Expenses = () => {
       return category ? category.name : 'Categoria Desconhecida';
     }},
     { header: 'Veículo', accessor: 'vehicleId', format: (value: string) => {
-      const vehicle = vehicles.find(v => v.id === value);
-      return vehicle ? vehicle.nickname || vehicle.model : 'Veículo Desconhecido';
+      const vehicle = vehicles.find(v => v.id === value) as Vehicle;
+      return vehicle ? (vehicle.model || 'Veículo Desconhecido') : 'Veículo Desconhecido';
     }},
     { header: 'Descrição', accessor: 'description' },
     { header: 'Valor (R$)', accessor: 'amount', format: (value: number) => value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }
@@ -124,7 +124,9 @@ const Expenses = () => {
                   Adicione uma nova despesa ao seu controle financeiro.
                 </DialogDescription>
               </DialogHeader>
-              <ExpenseForm onSubmit={handleAddExpense} onCancel={() => setIsDialogOpen(false)} />
+              <ExpenseForm 
+                onSuccess={() => setIsDialogOpen(false)} 
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -158,7 +160,7 @@ const Expenses = () => {
               <SelectItem value="all">Todos os veículos</SelectItem>
               {vehicles.map(vehicle => (
                 <SelectItem key={vehicle.id} value={vehicle.id}>
-                  {vehicle.nickname || vehicle.model}
+                  {vehicle.model}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -189,7 +191,7 @@ const Expenses = () => {
         <TabsContent value="list" className="mt-6">
           <ExpenseList 
             expenses={filteredExpenses} 
-            total={totalExpenses}
+            categories={expenseCategories}
             onEdit={(id) => console.log(`Edit expense ${id}`)}
             onDelete={(id) => {
               setExpenseList(prevExpenses => prevExpenses.filter(expense => expense.id !== id));
@@ -219,3 +221,4 @@ const Expenses = () => {
 };
 
 export default Expenses;
+
