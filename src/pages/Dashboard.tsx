@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { 
   BarChart, 
@@ -45,23 +44,12 @@ import { getLastWeekData, getLastMonthData } from '@/lib/data/stats';
 import { PeriodType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
 
-// Check for environment variables
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = 'https://qewlxnjqojxprkodfdqf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFld2x4bmpxb2p4cHJrb2RmZHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MjE0MTIsImV4cCI6MjA2MDE5NzQxMn0.lADhLBSYqfMPejc840DUUI-ylpihgiuHvHYYiHYnkKQ';
 
-// Initialize Supabase client only if URL is available
-const supabase = SUPABASE_URL && SUPABASE_ANON_KEY 
-  ? (function() {
-      try {
-        const { createClient } = require('@supabase/supabase-js');
-        return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      } catch (error) {
-        console.error('Failed to initialize Supabase client:', error);
-        return null;
-      }
-    })()
-  : null;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const Dashboard = () => {
   const [period, setPeriod] = useState<PeriodType>('week');
@@ -70,10 +58,8 @@ const Dashboard = () => {
   const { user } = useAuth();
   const tabsRef = useRef<HTMLDivElement>(null);
   
-  // Get stats based on selected period
   const stats = period === 'week' ? getLastWeekData() : getLastMonthData();
   
-  // Prepare income data for chart
   const incomeData = companies.map(company => {
     const companyIncomes = incomes.filter(income => income.companyId === company.id);
     const total = companyIncomes.reduce((sum, income) => sum + income.amount, 0);
@@ -84,7 +70,6 @@ const Dashboard = () => {
     };
   }).filter(item => item.valor > 0);
   
-  // Prepare expense data for chart
   const expenseData = expenseCategories.map(category => {
     const categoryExpenses = expenses.filter(expense => expense.categoryId === category.id);
     const total = categoryExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -95,7 +80,6 @@ const Dashboard = () => {
     };
   }).filter(item => item.valor > 0);
   
-  // Prepare refueling data
   const refuelingData = refuelings.map(refueling => {
     return {
       date: new Date(refueling.date).toLocaleDateString('pt-BR'),
@@ -105,27 +89,15 @@ const Dashboard = () => {
     };
   });
   
-  // Calculate the balance (income - expenses)
   const balance = stats.totalIncome - stats.totalExpenses;
   
-  // Pie chart colors
   const COLORS = ['#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#6366F1', '#EC4899'];
 
-  // Handle PDF export using Supabase edge function
   const handleExportPDF = async () => {
     if (!user?.isSubscribed) {
       toast({
         title: "Recurso premium",
         description: "A exportação de relatórios está disponível apenas para assinantes do plano Premium.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!supabase) {
-      toast({
-        title: "Configuração incompleta",
-        description: "As variáveis de ambiente do Supabase não estão configuradas corretamente.",
         variant: "destructive",
       });
       return;
@@ -138,7 +110,6 @@ const Dashboard = () => {
         description: "Seu relatório em PDF está sendo gerado...",
       });
 
-      // Call the Supabase edge function to generate the PDF
       const { data, error } = await supabase.functions.invoke('export-dashboard-pdf', {
         body: {
           period,
@@ -157,11 +128,6 @@ const Dashboard = () => {
         throw new Error(data.message || 'Erro ao gerar PDF');
       }
 
-      // Since we don't have a real PDF generation in the edge function yet,
-      // we'll use the jsPDF library on the client side for now
-      // In a real implementation, the edge function would return a download URL
-      
-      // For now, we'll use the client-side PDF generation as before
       await generatePDFClientSide();
       
       toast({
@@ -180,10 +146,7 @@ const Dashboard = () => {
     }
   };
   
-  // Temporary client-side PDF generation
   const generatePDFClientSide = async () => {
-    // We'll simulate a delay for now
-    // In a real implementation, this would be handled by the server
     return new Promise(resolve => {
       setTimeout(() => {
         resolve(true);
@@ -215,7 +178,6 @@ const Dashboard = () => {
         </div>
       </PageHeader>
       
-      {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           title="Faturamento Total"
@@ -253,7 +215,6 @@ const Dashboard = () => {
         />
       </div>
       
-      {/* Charts */}
       <div ref={tabsRef}>
         <Tabs defaultValue="summary" className="mb-6">
           <TabsList>
@@ -334,7 +295,6 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {/* Recent Income */}
                     <div>
                       <h4 className="text-sm font-medium mb-2">Rendimentos Recentes</h4>
                       <div className="space-y-2">
@@ -359,7 +319,6 @@ const Dashboard = () => {
                       </div>
                     </div>
                     
-                    {/* Recent Expenses */}
                     <div>
                       <h4 className="text-sm font-medium mb-2">Despesas Recentes</h4>
                       <div className="space-y-2">

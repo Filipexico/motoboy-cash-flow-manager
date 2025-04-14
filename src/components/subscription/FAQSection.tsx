@@ -10,10 +10,10 @@ import {
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
-// Check if environment variables are available
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const isSupabaseConfigured = SUPABASE_URL && SUPABASE_ANON_KEY;
+// Usando as credenciais diretamente para evitar dependência de variáveis de ambiente
+const SUPABASE_URL = 'https://qewlxnjqojxprkodfdqf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFld2x4bmpxb2p4cHJrb2RmZHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MjE0MTIsImV4cCI6MjA2MDE5NzQxMn0.lADhLBSYqfMPejc840DUUI-ylpihgiuHvHYYiHYnkKQ';
+const isSupabaseConfigured = true; // Consideramos configurado pois as credenciais estão diretamente no código
 
 const FAQSection: React.FC = () => {
   return (
@@ -61,7 +61,7 @@ const FAQSection: React.FC = () => {
           <div>
             <h3 className="font-medium text-lg">Problemas técnicos?</h3>
             <p className="text-gray-600 mt-1">
-              Em caso de problemas técnicos, verifique se as variáveis de ambiente estão configuradas corretamente. As assinaturas funcionam apenas quando o Supabase está configurado adequadamente.
+              Em caso de problemas técnicos, entre em contato com nosso suporte técnico através do e-mail suporte@motocontrole.com.br.
             </p>
           </div>
         </div>

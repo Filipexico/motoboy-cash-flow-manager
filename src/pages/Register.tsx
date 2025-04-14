@@ -16,6 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const registerSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -30,6 +32,7 @@ const Register = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
   
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -49,6 +52,7 @@ const Register = () => {
   
   const onSubmit = async (data: RegisterFormValues) => {
     try {
+      setRegisterError(null);
       setIsSubmitting(true);
       console.log("Registrando usuário:", data.email);
       await register(data.email, data.password, data.name);
@@ -57,11 +61,20 @@ const Register = () => {
         description: "Você será redirecionado para a página inicial.",
       });
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
+      let errorMessage = 'Não foi possível completar o registro. Tente novamente.';
+      
+      if (error.message?.includes('email_address_invalid')) {
+        errorMessage = 'O endereço de email fornecido é inválido.';
+      } else if (error.message?.includes('email already taken')) {
+        errorMessage = 'Este email já está cadastrado.';
+      }
+      
+      setRegisterError(errorMessage);
       toast({
         title: "Erro no registro",
-        description: error.message || "Não foi possível completar o registro. Tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -76,6 +89,16 @@ const Register = () => {
           <h1 className="text-2xl font-bold text-blue-700">Moto<span className="text-blue-500">Controle</span></h1>
           <p className="mt-2 text-gray-600">Crie sua conta</p>
         </div>
+        
+        {registerError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro no cadastro</AlertTitle>
+            <AlertDescription>
+              {registerError}
+            </AlertDescription>
+          </Alert>
+        )}
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -149,6 +172,13 @@ const Register = () => {
             </Link>
           </p>
         </div>
+      </div>
+      
+      <div className="mt-8 text-center text-sm text-gray-500">
+        <p>Dicas para registro:</p>
+        <p>• Use um email válido</p>
+        <p>• A senha deve ter pelo menos 6 caracteres</p>
+        <p>• Sugerimos usar nomes reais para melhor experiência no aplicativo</p>
       </div>
     </div>
   );
