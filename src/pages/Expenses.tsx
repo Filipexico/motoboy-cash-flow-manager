@@ -99,7 +99,7 @@ const Expenses = () => {
                   Preencha os dados para registrar uma nova despesa
                 </DialogDescription>
               </DialogHeader>
-              <ExpenseForm onSubmit={handleAddExpense} />
+              <ExpenseForm onSuccess={handleAddExpense} />
             </DialogContent>
           </Dialog>
         </div>
@@ -113,7 +113,7 @@ const Expenses = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ExpenseList />
+          <ExpenseList expenses={expenses} categories={expenseCategories} />
         </CardContent>
       </Card>
     </div>

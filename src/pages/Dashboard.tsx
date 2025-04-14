@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { 
   BarChart, 
@@ -48,6 +49,13 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+// Estendendo o tipo jsPDF para incluir o método autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 const Dashboard = () => {
   const [period, setPeriod] = useState<PeriodType>('week');
@@ -112,7 +120,7 @@ const Dashboard = () => {
         description: "Seu relatório em PDF está sendo gerado...",
       });
 
-      // Create PDF document
+      // Create PDF document with autoTable
       const doc = new jsPDF();
       
       // Add title and date

@@ -20,6 +20,7 @@ interface PdfExportButtonProps {
   subtitle?: string;
 }
 
+// Definindo a extensão do tipo jsPDF
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
