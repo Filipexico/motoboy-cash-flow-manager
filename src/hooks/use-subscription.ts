@@ -4,15 +4,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { checkSubscription } from '@/services/subscriptionService';
 
+interface SubscriptionData {
+  subscribed: boolean;
+  subscription_tier: string | null;
+  subscription_end: string | null;
+}
+
 export const useSubscription = () => {
   const { user, checkSubscription } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [subscription, setSubscription] = useState<null | {
-    subscribed: boolean;
-    subscription_tier: string | null;
-    subscription_end: string | null;
-  }>(null);
+  const [subscription, setSubscription] = useState<null | SubscriptionData>(null);
   
   const checkSubscriptionStatus = async () => {
     if (!user) {
@@ -41,10 +43,10 @@ export const useSubscription = () => {
         
         console.log('Subscription check result:', data);
         
-        const subscriptionData = {
-          subscribed: data?.subscribed ?? false,
-          subscription_tier: data?.subscription_tier ?? null,
-          subscription_end: data?.subscription_end ?? null
+        const subscriptionData: SubscriptionData = {
+          subscribed: Boolean(data?.subscribed),
+          subscription_tier: data?.subscription_tier as string | null,
+          subscription_end: data?.subscription_end as string | null
         };
         
         setSubscription(subscriptionData);
