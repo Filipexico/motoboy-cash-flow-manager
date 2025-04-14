@@ -8,6 +8,9 @@ import MainLayout from "./components/layout/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
 import Incomes from "./pages/Incomes";
+import Expenses from "./pages/Expenses";
+import Vehicles from "./pages/Vehicles";
+import Refuelings from "./pages/Refuelings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +35,21 @@ const App = () => (
           <Route path="/rendimentos" element={
             <MainLayout>
               <Incomes />
+            </MainLayout>
+          } />
+          <Route path="/despesas" element={
+            <MainLayout>
+              <Expenses />
+            </MainLayout>
+          } />
+          <Route path="/veiculos" element={
+            <MainLayout>
+              <Vehicles />
+            </MainLayout>
+          } />
+          <Route path="/abastecimentos" element={
+            <MainLayout>
+              <Refuelings />
             </MainLayout>
           } />
           <Route path="*" element={<NotFound />} />
