@@ -35,7 +35,7 @@ export type Vehicle = {
   year: number;
   licensePlate: string;
   active: boolean;
-  createdAt?: string; // Added for backward compatibility
+  createdAt: string; // Changed from optional to required and type Date to string
 };
 
 export type Company = {

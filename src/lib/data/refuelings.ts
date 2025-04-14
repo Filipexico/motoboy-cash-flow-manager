@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Refueling } from '@/types';
 import { vehicles } from './vehicles';
 
+// Helper to format date to ISO string
+const formatDate = (date: Date): string => date.toISOString();
+
 // Generate sample refuelings for the last 4 weeks
 const generateSampleRefuelings = (): Refueling[] => {
   const refuelings: Refueling[] = [];
@@ -20,13 +23,13 @@ const generateSampleRefuelings = (): Refueling[] => {
     refuelings.push({
       id: uuidv4(),
       vehicleId: vehicles[0].id, // Main vehicle
-      date,
+      date: formatDate(date),
       odometerStart: lastOdometer,
       odometerEnd,
       liters,
       pricePerLiter,
       totalCost: liters * pricePerLiter,
-      createdAt: date
+      createdAt: formatDate(date)
     });
     
     lastOdometer = odometerEnd;
@@ -46,7 +49,7 @@ export const addRefueling = (refueling: Omit<Refueling, 'id' | 'createdAt' | 'to
     ...refueling,
     id: uuidv4(),
     totalCost,
-    createdAt: new Date()
+    createdAt: formatDate(new Date())
   };
   
   refuelings.push(newRefueling);

@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Income } from '@/types';
 import { companies } from './companies';
 
+// Helper to format date to ISO string
+const formatDate = (date: Date): string => date.toISOString();
+
 // Generate sample incomes for the last 4 weeks
 const generateSampleIncomes = (): Income[] => {
   const incomes: Income[] = [];
@@ -22,10 +25,10 @@ const generateSampleIncomes = (): Income[] => {
           id: uuidv4(),
           companyId: company.id,
           amount: Math.floor(Math.random() * 800) + 400, // Random between 400-1200
-          weekStartDate,
-          weekEndDate,
+          weekStartDate: formatDate(weekStartDate),
+          weekEndDate: formatDate(weekEndDate),
           description: `Ganhos da semana ${weekStartDate.toLocaleDateString()} - ${weekEndDate.toLocaleDateString()}`,
-          createdAt: weekEndDate
+          createdAt: formatDate(weekEndDate)
         });
       }
     });
@@ -42,7 +45,7 @@ export const addIncome = (income: Omit<Income, 'id' | 'createdAt'>): Income => {
   const newIncome: Income = {
     ...income,
     id: uuidv4(),
-    createdAt: new Date()
+    createdAt: formatDate(new Date())
   };
   
   incomes.push(newIncome);

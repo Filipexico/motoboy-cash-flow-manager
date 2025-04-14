@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { 
   BarChart, 
@@ -44,13 +45,23 @@ import { getLastWeekData, getLastMonthData } from '@/lib/data/stats';
 import { PeriodType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
+// Check for environment variables
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Initialize Supabase client only if URL is available
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY 
+  ? (function() {
+      try {
+        const { createClient } = require('@supabase/supabase-js');
+        return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } catch (error) {
+        console.error('Failed to initialize Supabase client:', error);
+        return null;
+      }
+    })()
+  : null;
 
 const Dashboard = () => {
   const [period, setPeriod] = useState<PeriodType>('week');
@@ -111,6 +122,15 @@ const Dashboard = () => {
       return;
     }
 
+    if (!supabase) {
+      toast({
+        title: "Configuração incompleta",
+        description: "As variáveis de ambiente do Supabase não estão configuradas corretamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsExporting(true);
       toast({
@@ -133,7 +153,7 @@ const Dashboard = () => {
         throw new Error(error.message);
       }
 
-      if (data.error) {
+      if (data?.error) {
         throw new Error(data.message || 'Erro ao gerar PDF');
       }
 
@@ -146,7 +166,7 @@ const Dashboard = () => {
       
       toast({
         title: 'PDF Exportado',
-        description: data.message || 'Seu relatório foi gerado com sucesso.',
+        description: data?.message || 'Seu relatório foi gerado com sucesso.',
       });
     } catch (error) {
       console.error('Error exporting PDF:', error);

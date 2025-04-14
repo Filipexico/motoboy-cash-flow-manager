@@ -12,26 +12,30 @@ import { AlertCircle } from 'lucide-react';
 
 // Check if environment variables are available
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const isSupabaseConfigured = SUPABASE_URL && SUPABASE_ANON_KEY;
 
 const FAQSection: React.FC = () => {
   return (
     <Card className="mt-8">
       <CardHeader>
         <CardTitle>Perguntas Frequentes</CardTitle>
-        {!SUPABASE_URL && (
+        {!isSupabaseConfigured && (
           <CardDescription className="text-red-500">
             Configuração incompleta - Verifique as variáveis de ambiente
           </CardDescription>
         )}
       </CardHeader>
       <CardContent>
-        {!SUPABASE_URL && (
+        {!isSupabaseConfigured && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Erro de configuração</AlertTitle>
             <AlertDescription>
               As variáveis de ambiente do Supabase não estão configuradas. Para usar o sistema de assinaturas, 
               você precisa definir VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no seu arquivo .env.
+              <br/><br/>
+              <strong>Importante:</strong> Após adicionar as variáveis, reinicie a aplicação.
             </AlertDescription>
           </Alert>
         )}

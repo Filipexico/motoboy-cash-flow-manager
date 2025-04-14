@@ -1,8 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
 
 export const useSubscription = () => {
   const { user, checkSubscription } = useAuth();
@@ -19,13 +17,28 @@ export const useSubscription = () => {
   const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
   
   // Only create the client if URL is available
-  const supabase = SUPABASE_URL 
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
+  let supabase = null;
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (error) {
+      console.error('Error initializing Supabase client:', error);
+    }
+  }
   
   // Check subscription status
   const checkSubscriptionStatus = async () => {
-    if (!user || !supabase) return;
+    if (!user || !supabase) {
+      if (!supabase) {
+        toast({
+          title: 'Configuração incompleta',
+          description: 'As variáveis de ambiente do Supabase não estão configuradas corretamente.',
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
     
     try {
       setIsLoading(true);
@@ -66,7 +79,7 @@ export const useSubscription = () => {
     if (!supabase) {
       toast({
         title: 'Erro de configuração',
-        description: 'Sistema de assinaturas não disponível',
+        description: 'Sistema de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
         variant: 'destructive',
       });
       return;
@@ -114,7 +127,7 @@ export const useSubscription = () => {
     if (!supabase) {
       toast({
         title: 'Erro de configuração',
-        description: 'Sistema de gerenciamento de assinaturas não disponível',
+        description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
         variant: 'destructive',
       });
       return;
@@ -202,6 +215,49 @@ export const useSubscription = () => {
     subscriptionEnd,
     checkSubscriptionStatus,
     handleSubscribe,
-    openCustomerPortal
+    openCustomerPortal: () => {
+      if (!supabase) {
+        toast({
+          title: 'Erro de configuração',
+          description: 'Sistema de gerenciamento de assinaturas não disponível. Verifique as variáveis de ambiente do Supabase.',
+          variant: 'destructive',
+        });
+        return Promise.resolve();
+      }
+      
+      setIsLoading(true);
+      
+      try {
+        console.log('Opening customer portal...');
+        const { data, error } = await supabase.functions.invoke('customer-portal');
+        
+        if (error) {
+          console.error('Error opening customer portal:', error);
+          toast({
+            title: 'Erro',
+            description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
+            variant: 'destructive',
+          });
+          throw new Error(error.message);
+        }
+        
+        console.log('Customer portal session created:', data);
+        
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('No portal URL returned');
+        }
+      } catch (error) {
+        console.error('Error opening customer portal:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível abrir o portal de gerenciamento da assinatura.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 };

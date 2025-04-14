@@ -2,6 +2,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Vehicle } from '@/types';
 
+// Helper to format date to ISO string
+const formatDate = (date: Date): string => date.toISOString();
+
 // Sample vehicles
 export const vehicles: Vehicle[] = [
   {
@@ -11,7 +14,7 @@ export const vehicles: Vehicle[] = [
     year: 2020,
     licensePlate: 'ABC1234',
     active: true,
-    createdAt: new Date('2023-01-01')
+    createdAt: formatDate(new Date('2023-01-01'))
   },
   {
     id: uuidv4(),
@@ -20,7 +23,7 @@ export const vehicles: Vehicle[] = [
     year: 2019,
     licensePlate: 'XYZ5678',
     active: false,
-    createdAt: new Date('2023-02-15')
+    createdAt: formatDate(new Date('2023-02-15'))
   }
 ];
 
@@ -29,7 +32,7 @@ export const addVehicle = (vehicle: Omit<Vehicle, 'id' | 'createdAt'>): Vehicle 
   const newVehicle: Vehicle = {
     ...vehicle,
     id: uuidv4(),
-    createdAt: new Date()
+    createdAt: formatDate(new Date())
   };
   
   vehicles.push(newVehicle);

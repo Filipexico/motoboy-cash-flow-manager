@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Expense } from '@/types';
 import { expenseCategories } from './expense-categories';
 
+// Helper to format date to ISO string
+const formatDate = (date: Date): string => date.toISOString();
+
 // Generate sample expenses for the last 4 weeks
 const generateSampleExpenses = (): Expense[] => {
   const expenses: Expense[] = [];
@@ -20,9 +23,9 @@ const generateSampleExpenses = (): Expense[] => {
         id: uuidv4(),
         categoryId: expenseCategories[categoryIndex].id,
         amount: Math.floor(Math.random() * 100) + 20, // Random between 20-120
-        date,
+        date: formatDate(date),
         description: `Despesa com ${expenseCategories[categoryIndex].name}`,
-        createdAt: date
+        createdAt: formatDate(date)
       });
     }
   }
@@ -38,7 +41,7 @@ export const addExpense = (expense: Omit<Expense, 'id' | 'createdAt'>): Expense 
   const newExpense: Expense = {
     ...expense,
     id: uuidv4(),
-    createdAt: new Date()
+    createdAt: formatDate(new Date())
   };
   
   expenses.push(newExpense);
