@@ -1,82 +1,47 @@
 
-export interface Company {
+export type User = {
   id: string;
-  name: string;
-  logoUrl?: string;
-  active: boolean;
-  createdAt: Date;
-}
+  email: string;
+  isAdmin: boolean;
+  isSubscribed: boolean;
+  subscriptionTier: string | null;
+  subscriptionEnd: string | null;
+  displayName?: string;
+  createdAt?: string;
+};
 
-export interface Income {
+export type Expense = {
   id: string;
-  companyId: string;
   amount: number;
-  weekStartDate: Date;
-  weekEndDate: Date;
+  date: string;
   description?: string;
-  createdAt: Date;
-}
+  categoryId: string;
+  vehicleId?: string;
+  createdAt: string;
+};
 
-export interface ExpenseCategory {
+export type ExpenseCategory = {
   id: string;
   name: string;
-  icon?: string;
-}
+};
 
-export interface Expense {
-  id: string;
-  categoryId: string;
-  amount: number;
-  date: Date;
-  description: string;
-  createdAt: Date;
-}
-
-export interface Vehicle {
+export type Vehicle = {
   id: string;
   name: string;
   model: string;
   year: number;
   licensePlate: string;
   active: boolean;
-  createdAt: Date;
-}
+};
 
-export interface Refueling {
-  id: string;
-  vehicleId: string;
-  date: Date;
-  odometerStart: number;
-  odometerEnd: number;
-  liters: number;
-  pricePerLiter: number;
-  totalCost: number;
-  createdAt: Date;
-}
-
-export type PeriodType = 'day' | 'week' | 'month' | 'year';
-
-export interface DashboardStats {
-  totalIncome: number;
-  totalExpenses: number;
-  netProfit: number;
-  kmDriven: number;
-  fuelEfficiency: number; // km/L
-  costPerKm: number;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  createdAt: Date;
-  isAdmin: boolean;
-  isSubscribed: boolean;
-  subscriptionEndDate?: Date;
-}
-
-export interface AuthState {
-  user: User | null;
-  isLoading: boolean;
+export type AuthContextType = {
   isAuthenticated: boolean;
-}
+  isLoading: boolean;
+  user: User | null;
+  checkSubscription: () => Promise<void>;
+  logout: () => Promise<void>;
+  login?: (email: string, password: string) => Promise<void>;
+  register?: (email: string, password: string) => Promise<void>;
+};
+
+export type PeriodType = 'week' | 'month';
