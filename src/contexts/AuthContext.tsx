@@ -1,179 +1,199 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User, AuthState } from '@/types';
-import { findUserByEmail, createUser } from '@/lib/data/users';
-import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@supabase/supabase-js';
 
-interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, name: string, password: string) => Promise<boolean>;
-  logout: () => void;
-}
+// Define types
+type User = {
+  id: string;
+  email: string;
+  isAdmin: boolean;
+  isSubscribed: boolean;
+  subscriptionTier: string | null;
+  subscriptionEnd: string | null;
+  displayName?: string;
+};
 
+type AuthContextType = {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  user: User | null;
+  checkSubscription: () => Promise<void>;
+  logout: () => Promise<void>;
+};
+
+// Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isLoading: true,
-    isAuthenticated: false,
-  });
-  const { toast } = useToast();
-  const navigate = useNavigate();
+// Supabase client
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
-  // Check for saved session on mount
+// Sample user data (in a real app, this would come from your auth system)
+const mockUsers = [
+  { 
+    id: 'user1', 
+    email: 'user@example.com',
+    password: 'password', 
+    isAdmin: false, 
+    isSubscribed: false,
+    subscriptionTier: null,
+    subscriptionEnd: null,
+    displayName: 'Usuário Teste' 
+  },
+  { 
+    id: 'admin1', 
+    email: 'admin@example.com',
+    password: 'admin', 
+    isAdmin: true, 
+    isSubscribed: true,
+    subscriptionTier: 'premium',
+    subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    displayName: 'Admin' 
+  }
+];
+
+// Provider component
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Check if user is authenticated
   useEffect(() => {
-    const checkAuth = () => {
-      const savedUser = localStorage.getItem('motocontrole-user');
-      if (savedUser) {
-        try {
-          const user = JSON.parse(savedUser) as User;
-          setAuthState({
-            user,
-            isLoading: false,
-            isAuthenticated: true,
-          });
-        } catch (error) {
-          console.error('Error parsing saved user:', error);
-          localStorage.removeItem('motocontrole-user');
-          setAuthState({
-            user: null,
-            isLoading: false,
-            isAuthenticated: false,
-          });
+    const checkUser = async () => {
+      try {
+        setIsLoading(true);
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error('Auth error:', error);
+          setUser(null);
+          return;
         }
-      } else {
-        setAuthState({
-          user: null,
-          isLoading: false,
-          isAuthenticated: false,
-        });
+
+        if (session?.user) {
+          const { data: userProfile } = await supabase
+            .from('subscribers')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            isAdmin: session.user.app_metadata?.role === 'admin',
+            isSubscribed: userProfile?.subscribed || false,
+            subscriptionTier: userProfile?.subscription_tier || null,
+            subscriptionEnd: userProfile?.subscription_end || null,
+            displayName: session.user.user_metadata?.display_name || session.user.email
+          });
+          
+          // Check subscription status
+          checkSubscription();
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Auth effect error:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    checkAuth();
+    checkUser();
+
+    // Subscribe to auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+        } else if (event === 'SIGNED_IN' && session) {
+          const { data: userProfile } = await supabase
+            .from('subscribers')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            isAdmin: session.user.app_metadata?.role === 'admin',
+            isSubscribed: userProfile?.subscribed || false,
+            subscriptionTier: userProfile?.subscription_tier || null,
+            subscriptionEnd: userProfile?.subscription_end || null,
+            displayName: session.user.user_metadata?.display_name || session.user.email
+          });
+          
+          // Check subscription status
+          checkSubscription();
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  // Check subscription status
+  const checkSubscription = async () => {
     try {
-      // In a real app, this would be an API call
-      // For demo purposes, we're just checking if the user exists
-      const user = findUserByEmail(email);
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!user) {
-        toast({
-          title: 'Erro no login',
-          description: 'Usuário não encontrado.',
-          variant: 'destructive',
-        });
-        return false;
+      if (!session?.user) {
+        return;
       }
-
-      // In a real app, we would validate the password here
-      // For demo purposes, we're accepting any password
-
-      // Save user to localStorage for persistence
-      localStorage.setItem('motocontrole-user', JSON.stringify(user));
       
-      setAuthState({
-        user,
-        isLoading: false,
-        isAuthenticated: true,
-      });
+      const { data, error } = await supabase.functions.invoke('check-subscription');
       
-      toast({
-        title: 'Login realizado',
-        description: `Bem-vindo de volta, ${user.name}!`,
-      });
+      if (error) {
+        console.error('Error checking subscription:', error);
+        return;
+      }
       
-      return true;
+      if (data) {
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          
+          return {
+            ...prevUser,
+            isSubscribed: data.subscribed || false,
+            subscriptionTier: data.subscription_tier,
+            subscriptionEnd: data.subscription_end
+          };
+        });
+      }
     } catch (error) {
-      console.error('Login error:', error);
-      toast({
-        title: 'Erro no login',
-        description: 'Ocorreu um erro durante o login.',
-        variant: 'destructive',
-      });
-      return false;
+      console.error('Error in checkSubscription:', error);
     }
   };
 
-  const register = async (email: string, name: string, password: string): Promise<boolean> => {
-    try {
-      // Check if user already exists
-      const existingUser = findUserByEmail(email);
-      if (existingUser) {
-        toast({
-          title: 'Erro no cadastro',
-          description: 'Este email já está em uso.',
-          variant: 'destructive',
-        });
-        return false;
-      }
-
-      // Create new user
-      // In a real app, this would be an API call
-      const newUser = createUser(email, name);
-      
-      // Save user to localStorage for persistence
-      localStorage.setItem('motocontrole-user', JSON.stringify(newUser));
-      
-      setAuthState({
-        user: newUser,
-        isLoading: false,
-        isAuthenticated: true,
-      });
-      
-      toast({
-        title: 'Cadastro realizado',
-        description: `Bem-vindo, ${name}!`,
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Register error:', error);
-      toast({
-        title: 'Erro no cadastro',
-        description: 'Ocorreu um erro durante o cadastro.',
-        variant: 'destructive',
-      });
-      return false;
-    }
+  // Logout
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
   };
 
-  const logout = () => {
-    localStorage.removeItem('motocontrole-user');
-    setAuthState({
-      user: null,
-      isLoading: false,
-      isAuthenticated: false,
-    });
-    navigate('/login');
-    toast({
-      title: 'Logout realizado',
-      description: 'Você foi desconectado com sucesso.',
-    });
+  // Context value
+  const value = {
+    isAuthenticated: !!user,
+    isLoading,
+    user,
+    checkSubscription,
+    logout
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        ...authState,
-        login,
-        register,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
 
-export const useAuth = () => {
+// Hook for using auth context
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}

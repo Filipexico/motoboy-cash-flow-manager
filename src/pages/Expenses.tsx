@@ -26,7 +26,7 @@ import { expenses, expenseCategories, vehicles } from '@/lib/mock-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Expense, Vehicle } from '@/types';
+import { Expense, ExpenseCategory, Vehicle } from '@/types';
 
 const Expenses = () => {
   const [expenseList, setExpenseList] = useState<Expense[]>(expenses);
@@ -125,7 +125,7 @@ const Expenses = () => {
                 </DialogDescription>
               </DialogHeader>
               <ExpenseForm 
-                onSuccess={() => setIsDialogOpen(false)} 
+                onSuccess={handleAddExpense} 
               />
             </DialogContent>
           </Dialog>
@@ -192,7 +192,6 @@ const Expenses = () => {
           <ExpenseList 
             expenses={filteredExpenses} 
             categories={expenseCategories}
-            onEdit={(id) => console.log(`Edit expense ${id}`)}
             onDelete={(id) => {
               setExpenseList(prevExpenses => prevExpenses.filter(expense => expense.id !== id));
               toast({
@@ -221,4 +220,3 @@ const Expenses = () => {
 };
 
 export default Expenses;
-

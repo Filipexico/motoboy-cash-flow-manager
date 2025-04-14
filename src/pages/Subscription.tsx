@@ -14,195 +14,180 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import PageHeader from '@/components/common/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateUserSubscription } from '@/lib/data/users';
-
-// Import Stripe for the integration
-import { loadStripe } from '@stripe/stripe-js';
+import { createClient } from '@supabase/supabase-js';
 
 const Subscription = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [stripeLoaded, setStripeLoaded] = useState(false);
-  const [stripePromise, setStripePromise] = useState<any>(null);
+  const [subscription, setSubscription] = useState<null | {
+    subscribed: boolean;
+    subscription_tier: string | null;
+    subscription_end: string | null;
+  }>(null);
   
-  // Initialize Stripe when the component is mounted
-  useEffect(() => {
-    const loadStripeInstance = async () => {
-      try {
-        // Use your public key
-        const stripeInstance = await loadStripe('pk_live_51RDkntCAibRDOVWbEJlgPeVZ8Wf9cSQPZPTzp9ZLULrQbkFDH9LJcBzZLhocK9Rpp9uDzYj7iZKvIlRf4OhDZAr300U8MglfwQ');
-        setStripePromise(stripeInstance);
-        setStripeLoaded(true);
-      } catch (error) {
-        console.error('Erro ao carregar Stripe:', error);
-        toast({
-          title: 'Erro',
-          description: 'Houve um problema ao carregar o gateway de pagamento.',
-          variant: 'destructive'
-        });
-      }
-    };
+  const supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+  );
+  
+  // Check subscription status
+  const checkSubscriptionStatus = async () => {
+    if (!user) return;
     
-    loadStripeInstance();
-  }, [toast]);
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      setSubscription(data);
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível verificar o status da sua assinatura.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
-  // Function to create Stripe checkout session and redirect to checkout
+  // Handle creating a checkout session
   const handleSubscribe = async (plan: 'premium' | 'enterprise') => {
     setIsLoading(true);
     
     try {
-      if (!stripeLoaded || !stripePromise) {
-        toast({
-          title: 'Stripe não inicializado',
-          description: 'Por favor, aguarde o carregamento do Stripe ou recarregue a página.',
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      // Product IDs provided by user
-      const productId = plan === 'premium' 
-        ? 'prod_S81I7orN9sLjzm'  // Premium plan
-        : 'prod_S81KuZeZpl9bPM'; // Enterprise plan
-      
-      // Direct checkout implementation with Stripe
-      const stripe = await stripePromise;
-      
-      // Create a checkout session through the browser
-      const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Bearer pk_live_51RDkntCAibRDOVWbEJlgPeVZ8Wf9cSQPZPTzp9ZLULrQbkFDH9LJcBzZLhocK9Rpp9uDzYj7iZKvIlRf4OhDZAr300U8MglfwQ`,
-        },
-        body: new URLSearchParams({
-          'success_url': `${window.location.origin}/subscription?success=true`,
-          'cancel_url': `${window.location.origin}/subscription?canceled=true`,
-          'mode': 'subscription',
-          'line_items[0][price_data][currency]': 'brl',
-          'line_items[0][price_data][product]': productId,
-          'line_items[0][price_data][recurring][interval]': 'month',
-          'line_items[0][price_data][unit_amount]': plan === 'premium' ? '1500' : '9900',
-          'line_items[0][quantity]': '1',
-        }),
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { planType: plan }
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Erro ao criar sessão: ${errorData.error?.message || 'Erro desconhecido'}`);
+      if (error) {
+        throw new Error(error.message);
       }
       
-      const session = await response.json();
-      
-      // Redirect to checkout
-      await stripe.redirectToCheckout({
-        sessionId: session.id,
-      });
-      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (error) {
-      console.error('Subscription error:', error);
+      console.error('Error creating checkout session:', error);
       toast({
         title: 'Erro na assinatura',
         description: 'Ocorreu um erro ao processar sua assinatura. Por favor, tente novamente.',
         variant: 'destructive',
       });
+    } finally {
       setIsLoading(false);
     }
   };
-
-  // Function to check subscription status
-  const checkSubscriptionStatus = async () => {
-    try {
-      if (!user) return;
-      
-      // In a real implementation, you would call your backend API to verify the subscription status
-      const response = await fetch('https://api.stripe.com/v1/customers', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer pk_live_51RDkntCAibRDOVWbEJlgPeVZ8Wf9cSQPZPTzp9ZLULrQbkFDH9LJcBzZLhocK9Rpp9uDzYj7iZKvIlRf4OhDZAr300U8MglfwQ`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Erro ao verificar status da assinatura');
-      }
-      
-      // Process the response to update user subscription status
-      // This is a simplified example - in a real app, you would need to check if the user has an active subscription
-      
-      // For demo purposes, we're mocking this behavior
-      const urlParams = new URLSearchParams(window.location.search);
-      const success = urlParams.get('success');
-      
-      if (success === 'true' && user) {
-        const oneYearLater = new Date();
-        oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
-        updateUserSubscription(user.id, true, oneYearLater);
-        
-        toast({
-          title: 'Assinatura ativada',
-          description: 'Sua assinatura foi ativada com sucesso!',
-        });
-        
-        // Remove query parameters from URL
-        window.history.replaceState(null, '', '/subscription');
-      }
-      
-    } catch (error) {
-      console.error('Error checking subscription:', error);
-    }
-  };
   
-  // Function to open Stripe customer portal for subscription management
+  // Handle opening the customer portal
   const openCustomerPortal = async () => {
     setIsLoading(true);
     
     try {
-      if (!user) {
-        setIsLoading(false);
-        return;
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+      
+      if (error) {
+        throw new Error(error.message);
       }
       
-      // In a real implementation, you would call your backend API to create a portal session
-      // and redirect the user to the portal URL
-      
-      // For demonstration, we'll simulate this
-      setTimeout(() => {
-        toast({
-          title: 'Portal do cliente',
-          description: 'O portal de gerenciamento de assinatura seria aberto aqui.',
-        });
-        setIsLoading(false);
-      }, 1000);
-      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No portal URL returned');
+      }
     } catch (error) {
       console.error('Error opening customer portal:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao abrir o portal do cliente.',
+        description: 'Não foi possível abrir o portal de gerenciamento da assinatura.',
         variant: 'destructive',
       });
+    } finally {
       setIsLoading(false);
     }
   };
   
-  // Check subscription status on component mount and when URL params change
+  // Check for URL parameters after returning from Stripe
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('success');
+    const canceled = params.get('canceled');
+    
+    if (success === 'true') {
+      toast({
+        title: 'Assinatura ativada',
+        description: 'Sua assinatura foi ativada com sucesso!',
+      });
+      
+      // Remove query parameters from URL
+      window.history.replaceState(null, '', '/subscription');
+      
+      // Check subscription status after successful payment
+      checkSubscriptionStatus();
+    } else if (canceled === 'true') {
+      toast({
+        title: 'Assinatura cancelada',
+        description: 'O processo de assinatura foi cancelado.',
+        variant: 'destructive',
+      });
+      
+      // Remove query parameters from URL
+      window.history.replaceState(null, '', '/subscription');
+    }
+  }, []);
+  
+  // Check subscription status on component mount
   useEffect(() => {
     checkSubscriptionStatus();
   }, [user]);
+  
+  // Format subscription end date
+  const formatSubscriptionEnd = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+  
+  const isSubscribed = subscription?.subscribed || false;
+  const subscriptionTier = subscription?.subscription_tier || null;
+  const subscriptionEnd = subscription?.subscription_end || null;
   
   return (
     <div>
       <PageHeader
         title="Assinatura"
         description="Escolha o plano ideal para suas necessidades"
-      />
+      >
+        {isSubscribed && (
+          <Button 
+            variant="outline" 
+            onClick={checkSubscriptionStatus}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Verificando...' : 'Verificar assinatura'}
+          </Button>
+        )}
+      </PageHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Free Plan */}
-        <Card className="border-2 border-gray-200">
+        <Card className={`border-2 ${!isSubscribed ? 'border-blue-500' : 'border-gray-200'} relative`}>
+          {!isSubscribed && (
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-blue-500 hover:bg-blue-600">Plano Atual</Badge>
+            </div>
+          )}
           <CardHeader>
             <CardTitle>Gratuito</CardTitle>
             <CardDescription>
@@ -242,17 +227,24 @@ const Subscription = () => {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full" disabled={!user?.isSubscribed}>
-              {!user?.isSubscribed ? 'Plano Atual' : 'Mudar para Este Plano'}
+            <Button variant="outline" className="w-full" disabled={!isSubscribed}>
+              {!isSubscribed ? 'Plano Atual' : 'Mudar para Este Plano'}
             </Button>
           </CardFooter>
         </Card>
 
         {/* Premium Plan */}
-        <Card className="border-2 border-blue-500 relative md:scale-105 shadow-lg">
-          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-            <Badge className="bg-blue-500 hover:bg-blue-600">Recomendado</Badge>
-          </div>
+        <Card className={`border-2 ${subscriptionTier === 'premium' ? 'border-blue-500' : 'border-gray-200'} relative md:scale-105 shadow-lg`}>
+          {subscriptionTier === 'premium' && (
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-blue-500 hover:bg-blue-600">Plano Atual</Badge>
+            </div>
+          )}
+          {!subscriptionTier && (
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-blue-500 hover:bg-blue-600">Recomendado</Badge>
+            </div>
+          )}
           <CardHeader>
             <CardTitle>Premium</CardTitle>
             <CardDescription>
@@ -292,7 +284,7 @@ const Subscription = () => {
             </ul>
           </CardContent>
           <CardFooter>
-            {user?.isSubscribed ? (
+            {isSubscribed ? (
               <Button className="w-full" variant="outline" onClick={openCustomerPortal} disabled={isLoading}>
                 {isLoading ? 'Processando...' : 'Gerenciar Assinatura'}
               </Button>
@@ -310,7 +302,12 @@ const Subscription = () => {
         </Card>
 
         {/* Enterprise Plan */}
-        <Card className="border-2 border-gray-200">
+        <Card className={`border-2 ${subscriptionTier === 'enterprise' ? 'border-blue-500' : 'border-gray-200'} relative`}>
+          {subscriptionTier === 'enterprise' && (
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-blue-500 hover:bg-blue-600">Plano Atual</Badge>
+            </div>
+          )}
           <CardHeader>
             <CardTitle>Empresarial</CardTitle>
             <CardDescription>
@@ -350,7 +347,7 @@ const Subscription = () => {
             </ul>
           </CardContent>
           <CardFooter>
-            {user?.isSubscribed ? (
+            {isSubscribed ? (
               <Button variant="outline" className="w-full" onClick={openCustomerPortal} disabled={isLoading}>
                 {isLoading ? 'Processando...' : 'Gerenciar Assinatura'}
               </Button>
@@ -367,6 +364,31 @@ const Subscription = () => {
           </CardFooter>
         </Card>
       </div>
+
+      {isSubscribed && subscriptionTier && subscriptionEnd && (
+        <Card className="mt-8 border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-green-800">Informações da sua assinatura</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-medium">Plano atual:</span>
+                <span>{subscriptionTier === 'premium' ? 'Premium' : 'Empresarial'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Próxima cobrança:</span>
+                <span>{formatSubscriptionEnd(subscriptionEnd)}</span>
+              </div>
+              <div className="mt-4">
+                <Button variant="outline" onClick={openCustomerPortal} className="w-full">
+                  Gerenciar assinatura
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mt-8">
         <CardHeader>
