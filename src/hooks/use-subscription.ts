@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { checkSubscription } from '@/services/subscriptionService';
 
 export const useSubscription = () => {
   const { user, checkSubscription } = useAuth();
@@ -41,9 +42,9 @@ export const useSubscription = () => {
         console.log('Subscription check result:', data);
         
         const subscriptionData = {
-          subscribed: data?.subscribed as boolean ?? false,
-          subscription_tier: data?.subscription_tier as string | null ?? null,
-          subscription_end: data?.subscription_end as string | null ?? null
+          subscribed: data?.subscribed ?? false,
+          subscription_tier: data?.subscription_tier ?? null,
+          subscription_end: data?.subscription_end ?? null
         };
         
         setSubscription(subscriptionData);
