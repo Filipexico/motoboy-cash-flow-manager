@@ -8,6 +8,8 @@ export type User = {
   subscriptionEnd: string | null;
   displayName?: string;
   createdAt?: string;
+  name?: string; // Added for backward compatibility
+  subscriptionEndDate?: string; // Added for backward compatibility
 };
 
 export type Expense = {
@@ -23,6 +25,7 @@ export type Expense = {
 export type ExpenseCategory = {
   id: string;
   name: string;
+  icon?: string; // Added for backward compatibility
 };
 
 export type Vehicle = {
@@ -32,6 +35,46 @@ export type Vehicle = {
   year: number;
   licensePlate: string;
   active: boolean;
+  createdAt?: string; // Added for backward compatibility
+};
+
+export type Company = {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  active: boolean;
+  createdAt: string;
+};
+
+export type Income = {
+  id: string;
+  companyId: string;
+  amount: number;
+  weekStartDate: string;
+  weekEndDate: string;
+  description?: string;
+  createdAt: string;
+};
+
+export type Refueling = {
+  id: string;
+  vehicleId: string;
+  date: string;
+  odometerStart: number;
+  odometerEnd: number;
+  liters: number;
+  pricePerLiter: number;
+  totalCost: number;
+  createdAt: string;
+};
+
+export type DashboardStats = {
+  totalIncome: number;
+  totalExpenses: number;
+  netProfit: number;
+  kmDriven: number;
+  fuelEfficiency: number; // km/L
+  costPerKm: number;
 };
 
 export type AuthContextType = {
@@ -41,7 +84,7 @@ export type AuthContextType = {
   checkSubscription: () => Promise<void>;
   logout: () => Promise<void>;
   login?: (email: string, password: string) => Promise<void>;
-  register?: (email: string, password: string) => Promise<void>;
+  register?: (email: string, password: string, name?: string) => Promise<void>;
 };
 
 export type PeriodType = 'week' | 'month';

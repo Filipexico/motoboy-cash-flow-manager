@@ -15,16 +15,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
+  password: z.string().min(1, 'Por favor, insira sua senha'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const { login, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   
   // Redirect if already authenticated
@@ -43,9 +45,12 @@ const Login = () => {
   });
   
   const onSubmit = async (data: LoginFormValues) => {
-    const success = await login(data.email, data.password);
-    if (success) {
+    try {
+      await login(data.email, data.password);
       navigate('/');
+    } catch (error) {
+      console.error('Login error:', error);
+      // Error is already handled in the login function with toast
     }
   };
   
@@ -54,7 +59,7 @@ const Login = () => {
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-blue-700">Moto<span className="text-blue-500">Controle</span></h1>
-          <p className="mt-2 text-gray-600">Entre na sua conta para continuar</p>
+          <p className="mt-2 text-gray-600">Faça login para continuar</p>
         </div>
         
         <Form {...form}>

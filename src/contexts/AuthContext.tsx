@@ -1,25 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-
-// Define types
-type User = {
-  id: string;
-  email: string;
-  isAdmin: boolean;
-  isSubscribed: boolean;
-  subscriptionTier: string | null;
-  subscriptionEnd: string | null;
-  displayName?: string;
-};
-
-type AuthContextType = {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  user: User | null;
-  checkSubscription: () => Promise<void>;
-  logout: () => Promise<void>;
-};
+import { User, AuthContextType } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,34 +13,11 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-// Sample user data (in a real app, this would come from your auth system)
-const mockUsers = [
-  { 
-    id: 'user1', 
-    email: 'user@example.com',
-    password: 'password', 
-    isAdmin: false, 
-    isSubscribed: false,
-    subscriptionTier: null,
-    subscriptionEnd: null,
-    displayName: 'Usuário Teste' 
-  },
-  { 
-    id: 'admin1', 
-    email: 'admin@example.com',
-    password: 'admin', 
-    isAdmin: true, 
-    isSubscribed: true,
-    subscriptionTier: 'premium',
-    subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    displayName: 'Admin' 
-  }
-];
-
 // Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   
   // Check if user is authenticated
   useEffect(() => {
@@ -87,7 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isSubscribed: userProfile?.subscribed || false,
             subscriptionTier: userProfile?.subscription_tier || null,
             subscriptionEnd: userProfile?.subscription_end || null,
-            displayName: session.user.user_metadata?.display_name || session.user.email
+            subscriptionEndDate: userProfile?.subscription_end || null, // For backward compatibility
+            displayName: session.user.user_metadata?.display_name || session.user.email,
+            name: session.user.user_metadata?.display_name || session.user.email, // For backward compatibility
           });
           
           // Check subscription status
@@ -111,24 +73,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setUser(null);
         } else if (event === 'SIGNED_IN' && session) {
-          const { data: userProfile } = await supabase
-            .from('subscribers')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
+          try {
+            // Check if user exists in subscribers table
+            const { data: userProfile } = await supabase
+              .from('subscribers')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
 
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            isAdmin: session.user.app_metadata?.role === 'admin',
-            isSubscribed: userProfile?.subscribed || false,
-            subscriptionTier: userProfile?.subscription_tier || null,
-            subscriptionEnd: userProfile?.subscription_end || null,
-            displayName: session.user.user_metadata?.display_name || session.user.email
-          });
-          
-          // Check subscription status
-          checkSubscription();
+            // If this is a new user (no subscriber record), create default data
+            if (!userProfile) {
+              console.log('New user detected - setting up default data');
+              await setupNewUserData(session.user.id);
+            }
+
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              isAdmin: session.user.app_metadata?.role === 'admin',
+              isSubscribed: userProfile?.subscribed || false,
+              subscriptionTier: userProfile?.subscription_tier || null,
+              subscriptionEnd: userProfile?.subscription_end || null,
+              subscriptionEndDate: userProfile?.subscription_end || null, // For backward compatibility
+              displayName: session.user.user_metadata?.display_name || session.user.email,
+              name: session.user.user_metadata?.display_name || session.user.email, // For backward compatibility
+            });
+            
+            // Check subscription status
+            checkSubscription();
+          } catch (error) {
+            console.error('Error setting up user data:', error);
+          }
         }
       }
     );
@@ -137,6 +112,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  // Function to set up default data for new users
+  const setupNewUserData = async (userId: string) => {
+    try {
+      // Create a subscriber record
+      await supabase.from('subscribers').insert({
+        user_id: userId,
+        email: user?.email || '',
+        subscribed: false,
+        subscription_tier: null,
+        subscription_end: null,
+      });
+
+      // Create default expense categories
+      const defaultCategories = [
+        { name: 'Combustível', user_id: userId },
+        { name: 'Manutenção', user_id: userId },
+        { name: 'Seguro', user_id: userId },
+        { name: 'Impostos', user_id: userId },
+        { name: 'Limpeza', user_id: userId },
+        { name: 'Outros', user_id: userId }
+      ];
+      
+      await supabase.from('expense_categories').insert(defaultCategories);
+      
+      console.log('Default data setup completed for new user');
+    } catch (error) {
+      console.error('Error setting up default data:', error);
+    }
+  };
 
   // Check subscription status
   const checkSubscription = async () => {
@@ -147,12 +152,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
+      console.log('Checking subscription status...');
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error) {
         console.error('Error checking subscription:', error);
+        toast({
+          title: 'Erro',
+          description: 'Falha ao verificar status da assinatura: ' + error.message,
+          variant: 'destructive',
+        });
         return;
       }
+      
+      console.log('Subscription check result:', data);
       
       if (data) {
         setUser(prevUser => {
@@ -162,12 +175,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ...prevUser,
             isSubscribed: data.subscribed || false,
             subscriptionTier: data.subscription_tier,
-            subscriptionEnd: data.subscription_end
+            subscriptionEnd: data.subscription_end,
+            subscriptionEndDate: data.subscription_end, // For backward compatibility
           };
         });
       }
     } catch (error) {
       console.error('Error in checkSubscription:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao verificar status da assinatura',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Login function
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Login realizado com sucesso',
+        description: 'Bem-vindo de volta!',
+      });
+
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: 'Erro no login',
+        description: error.message || 'Falha ao realizar login',
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Register function
+  const register = async (email: string, password: string, name?: string) => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: name || email,
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Cadastro realizado com sucesso',
+        description: 'Bem-vindo ao MotoControle!',
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        title: 'Erro no cadastro',
+        description: error.message || 'Falha ao criar conta',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -175,6 +263,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    toast({
+      title: 'Logout realizado',
+      description: 'Você saiu da sua conta',
+    });
   };
 
   // Context value
@@ -183,7 +275,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     user,
     checkSubscription,
-    logout
+    logout,
+    login,
+    register
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

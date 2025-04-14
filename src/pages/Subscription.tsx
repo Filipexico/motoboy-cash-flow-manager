@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Check, CreditCard, AlertCircle } from 'lucide-react';
+import { Check, CreditCard, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@supabase/supabase-js';
 
 const Subscription = () => {
-  const { user } = useAuth();
+  const { user, checkSubscription } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [subscription, setSubscription] = useState<null | {
@@ -38,13 +38,25 @@ const Subscription = () => {
     try {
       setIsLoading(true);
       
+      console.log('Manually checking subscription status...');
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error) {
+        console.error('Error checking subscription:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível verificar o status da sua assinatura: ' + error.message,
+          variant: 'destructive',
+        });
         throw new Error(error.message);
       }
       
+      console.log('Subscription check result:', data);
       setSubscription(data);
+      
+      // Also update the global auth context
+      await checkSubscription();
+      
     } catch (error) {
       console.error('Error checking subscription:', error);
       toast({
@@ -62,13 +74,22 @@ const Subscription = () => {
     setIsLoading(true);
     
     try {
+      console.log(`Creating checkout session for plan: ${plan}`);
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { planType: plan }
       });
       
       if (error) {
+        console.error('Error creating checkout session:', error);
+        toast({
+          title: 'Erro na assinatura',
+          description: 'Ocorreu um erro ao processar sua assinatura: ' + error.message,
+          variant: 'destructive',
+        });
         throw new Error(error.message);
       }
+      
+      console.log('Checkout session created:', data);
       
       if (data?.url) {
         window.location.href = data.url;
@@ -92,11 +113,20 @@ const Subscription = () => {
     setIsLoading(true);
     
     try {
+      console.log('Opening customer portal...');
       const { data, error } = await supabase.functions.invoke('customer-portal');
       
       if (error) {
+        console.error('Error opening customer portal:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
+          variant: 'destructive',
+        });
         throw new Error(error.message);
       }
+      
+      console.log('Customer portal session created:', data);
       
       if (data?.url) {
         window.location.href = data.url;
@@ -159,9 +189,9 @@ const Subscription = () => {
     });
   };
   
-  const isSubscribed = subscription?.subscribed || false;
-  const subscriptionTier = subscription?.subscription_tier || null;
-  const subscriptionEnd = subscription?.subscription_end || null;
+  const isSubscribed = subscription?.subscribed || user?.isSubscribed || false;
+  const subscriptionTier = subscription?.subscription_tier || user?.subscriptionTier || null;
+  const subscriptionEnd = subscription?.subscription_end || user?.subscriptionEnd || null;
   
   return (
     <div>
@@ -169,15 +199,23 @@ const Subscription = () => {
         title="Assinatura"
         description="Escolha o plano ideal para suas necessidades"
       >
-        {isSubscribed && (
-          <Button 
-            variant="outline" 
-            onClick={checkSubscriptionStatus}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Verificando...' : 'Verificar assinatura'}
-          </Button>
-        )}
+        <Button 
+          variant="outline" 
+          onClick={checkSubscriptionStatus}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Verificando...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Verificar assinatura
+            </>
+          )}
+        </Button>
       </PageHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

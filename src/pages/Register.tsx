@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -30,6 +31,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
   const { register, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   
   // Redirect if already authenticated
@@ -50,9 +52,18 @@ const Register = () => {
   });
   
   const onSubmit = async (data: RegisterFormValues) => {
-    const success = await register(data.email, data.name, data.password);
-    if (success) {
-      navigate('/');
+    try {
+      const success = await register(data.email, data.password, data.name);
+      if (success) {
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        title: 'Erro no cadastro',
+        description: 'Falha ao criar sua conta. Por favor, tente novamente.',
+        variant: 'destructive',
+      });
     }
   };
   
