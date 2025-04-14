@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loginUser, registerUser, logoutUser } from '../authService';
 import { supabase } from '@/lib/supabase';
 import { AuthError } from '@supabase/supabase-js';
+import { setupNewUserData } from '../userService';
+
+// Mock the userService
+vi.mock('../userService', () => ({
+  setupNewUserData: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -42,17 +48,16 @@ describe('authService', () => {
     });
 
     it('should throw error on login failure', async () => {
-      const mockError: AuthError = {
-        name: 'AuthApiError',
-        message: 'Invalid credentials',
-        status: 401,
-        __isAuthError: true,
-        code: 'invalid_credentials',
-      };
+      // Create a partial AuthError that TypeScript will accept
+      const mockError = new Error('Invalid credentials') as Partial<AuthError>;
+      mockError.name = 'AuthApiError';
+      mockError.message = 'Invalid credentials';
+      mockError.status = 401;
+      // Avoid setting protected properties directly
       
       vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce({ 
         data: { user: null, session: null }, 
-        error: mockError 
+        error: mockError as AuthError
       } as any);
       
       await expect(loginUser('test@example.com', 'wrong-password')).rejects.toEqual(mockError);
@@ -84,23 +89,41 @@ describe('authService', () => {
           },
         },
       });
+      expect(setupNewUserData).toHaveBeenCalledWith('123', 'new@example.com');
     });
 
     it('should throw error on registration failure', async () => {
-      const mockError: AuthError = {
-        name: 'AuthApiError',
-        message: 'Email already exists',
-        status: 400,
-        __isAuthError: true,
-        code: 'email_taken',
-      };
+      // Create a partial AuthError that TypeScript will accept
+      const mockError = new Error('Email already exists') as Partial<AuthError>;
+      mockError.name = 'AuthApiError';
+      mockError.message = 'Email already exists';
+      mockError.status = 400;
+      // Avoid setting protected properties directly
       
       vi.mocked(supabase.auth.signUp).mockResolvedValueOnce({ 
         data: { user: null, session: null }, 
-        error: mockError 
+        error: mockError as AuthError 
       } as any);
       
       await expect(registerUser('existing@example.com', 'password123')).rejects.toEqual(mockError);
+    });
+  });
+
+  describe('logoutUser', () => {
+    it('should successfully log out a user', async () => {
+      vi.mocked(supabase.auth.signOut).mockResolvedValueOnce({ error: null } as any);
+      
+      await expect(logoutUser()).resolves.not.toThrow();
+      expect(supabase.auth.signOut).toHaveBeenCalled();
+    });
+
+    it('should throw error on logout failure', async () => {
+      const mockError = new Error('Logout failed') as Partial<AuthError>;
+      mockError.message = 'Logout failed';
+      
+      vi.mocked(supabase.auth.signOut).mockResolvedValueOnce({ error: mockError as AuthError } as any);
+      
+      await expect(logoutUser()).rejects.toEqual(mockError);
     });
   });
 });
