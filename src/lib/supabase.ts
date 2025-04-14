@@ -13,7 +13,8 @@ export const supabase = (() => {
     supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
-        autoRefreshToken: true
+        autoRefreshToken: true,
+        storageKey: 'motocontrole-auth-storage-key' // Add unique storage key
       }
     });
     console.log('Supabase client initialized');

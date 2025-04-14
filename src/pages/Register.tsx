@@ -55,21 +55,26 @@ const Register = () => {
       setRegisterError(null);
       setIsSubmitting(true);
       console.log("Registrando usuário:", data.email);
+      
       await register(data.email, data.password, data.name);
+      
       toast({
         title: "Registro realizado com sucesso",
         description: "Você será redirecionado para o painel.",
       });
+      
       // Navegação explícita após registro bem-sucedido
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Registration error:', error);
       let errorMessage = 'Não foi possível completar o registro. Tente novamente.';
       
-      if (error.message?.includes('email_address_invalid')) {
-        errorMessage = 'O endereço de email fornecido é inválido.';
-      } else if (error.message?.includes('email already taken')) {
+      if (error.message?.includes('email already taken') || error.message?.includes('email already exists')) {
         errorMessage = 'Este email já está cadastrado.';
+      } else if (error.message?.includes('invalid email')) {
+        errorMessage = 'O endereço de email fornecido é inválido.';
+      } else if (error.message?.includes('weak password')) {
+        errorMessage = 'A senha fornecida é muito fraca. Use pelo menos 6 caracteres.';
       }
       
       setRegisterError(errorMessage);
