@@ -1,11 +1,13 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 interface PageHeaderProps {
   title: string;
   description?: string;
   actionLabel?: string;
+  actionIcon?: string;
   onAction?: () => void;
   children?: React.ReactNode;
 }
@@ -14,6 +16,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   description,
   actionLabel,
+  actionIcon,
   onAction,
   children
 }) => {
@@ -27,6 +30,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         {children}
         {actionLabel && onAction && (
           <Button onClick={onAction}>
+            {actionIcon === 'plus' && <Plus className="mr-2 h-4 w-4" />}
             {actionLabel}
           </Button>
         )}

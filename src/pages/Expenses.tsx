@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { expenses, expenseCategories, addExpense, deleteExpense } from '@/lib/mock-data';
+import { expenses, expenseCategories } from '@/lib/mock-data';
 import { Expense, ExpenseCategory } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 import PageHeader from '@/components/common/PageHeader';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
@@ -63,7 +64,12 @@ const Expenses = () => {
   
   // Handle form submission
   const handleSubmit = (formData: Omit<Expense, 'id'>) => {
-    const newExpense = addExpense(formData);
+    const newExpense: Expense = {
+      ...formData,
+      id: uuidv4(),
+      createdAt: new Date().toISOString()
+    };
+    
     setExpenseList([...expenseList, newExpense]);
     
     toast({
@@ -74,7 +80,6 @@ const Expenses = () => {
   
   // Handle expense deletion
   const handleDelete = (id: string) => {
-    deleteExpense(id);
     setExpenseList(expenseList.filter(expense => expense.id !== id));
     
     toast({
@@ -89,7 +94,6 @@ const Expenses = () => {
         title="Despesas" 
         description="Gerencie e acompanhe suas despesas"
         actionLabel="Nova Despesa"
-        actionIcon="plus"
         onAction={() => document.getElementById('add-expense-trigger')?.click()}
       />
       
@@ -176,7 +180,6 @@ const Expenses = () => {
           <div className="mt-6">
             <SheetClose asChild>
               <ExpenseForm 
-                categories={categories} 
                 onSubmit={handleSubmit} 
               />
             </SheetClose>

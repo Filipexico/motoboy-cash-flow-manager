@@ -23,9 +23,10 @@ import { ptBR } from 'date-fns/locale';
 interface ExpenseListProps {
   expenses: Expense[];
   categories: ExpenseCategory[];
+  onDelete?: (id: string) => void;
 }
 
-const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, categories }) => {
+const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, categories, onDelete }) => {
   if (expenses.length === 0) {
     return (
       <div className="text-center py-10">
@@ -73,7 +74,10 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, categories }) => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem>Editar</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => onDelete && onDelete(expense.id)}
+                    >
                       Excluir
                     </DropdownMenuItem>
                   </DropdownMenuContent>
