@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -35,7 +34,7 @@ const queryClient = new QueryClient({
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
-  // Limitamos o tempo de carregamento para evitar ficar preso
+  // Limiting loading time to prevent getting stuck
   const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
   useEffect(() => {
@@ -44,13 +43,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         console.log("Tempo de carregamento excedido, forçando renderização");
         setTimeoutOccurred(true);
       }
-    }, 5000); // 5 segundos de timeout
+    }, 3000); // Reduced to 3 seconds timeout
     
     return () => clearTimeout(timer);
   }, [isLoading]);
   
   if (isLoading && !timeoutOccurred) {
-    return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-blue-700">Moto<span className="text-blue-500">Controle</span></h1>
+          </div>
+          <p className="text-gray-600">Carregando os dados...</p>
+        </div>
+      </div>
+    );
   }
   
   if (!isAuthenticated && !timeoutOccurred) {
@@ -64,7 +72,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
   
-  // Limitamos o tempo de carregamento para evitar ficar preso
+  // Limiting loading time to prevent getting stuck
   const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
   useEffect(() => {
@@ -73,17 +81,26 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
         console.log("Tempo de carregamento excedido em AdminRoute, forçando renderização");
         setTimeoutOccurred(true);
       }
-    }, 5000); // 5 segundos de timeout
+    }, 3000); // Reduced to 3 seconds timeout
     
     return () => clearTimeout(timer);
   }, [isLoading]);
   
   if (isLoading && !timeoutOccurred) {
-    return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-blue-700">Moto<span className="text-blue-500">Controle</span></h1>
+          </div>
+          <p className="text-gray-600">Carregando dados do administrador...</p>
+        </div>
+      </div>
+    );
   }
   
   if (!user?.isAdmin && !timeoutOccurred) {
-    return <Navigate to="/" />;
+    return <Navigate to="/dashboard" />;
   }
   
   return <>{children}</>;

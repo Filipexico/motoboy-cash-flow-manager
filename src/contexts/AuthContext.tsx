@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { User, AuthContextType } from '@/types';
@@ -10,8 +11,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SUPABASE_URL = 'https://qewlxnjqojxprkodfdqf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFld2x4bmpxb2p4cHJrb2RmZHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2MjE0MTIsImV4cCI6MjA2MDE5NzQxMn0.lADhLBSYqfMPejc840DUUI-ylpihgiuHvHYYiHYnkKQ';
 
-// Create Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Create Supabase client - ensuring only ONE instance is created
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
 
 // Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -21,23 +27,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // Check if user is authenticated
   useEffect(() => {
+    let isMounted = true;
     const checkUser = async () => {
       try {
         console.log("Verificando sessão do usuário...");
-        setIsLoading(true);
+        if (isMounted) setIsLoading(true);
         
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
           console.error('Auth error:', error);
-          setUser(null);
-          setIsLoading(false);
+          if (isMounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
           return;
         }
 
         console.log("Sessão:", session ? "Encontrada" : "Não encontrada");
         
-        if (session?.user) {
+        if (session?.user && isMounted) {
           console.log("Usuário autenticado:", session.user.email);
           
           try {
@@ -53,23 +62,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // Continua mesmo com erro - não bloqueia o fluxo
             }
 
-            // Define o usuário mesmo sem dados de perfil completos
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              isAdmin: session.user.app_metadata?.role === 'admin',
-              isSubscribed: userProfile?.subscribed || false,
-              subscriptionTier: userProfile?.subscription_tier || null,
-              subscriptionEnd: userProfile?.subscription_end || null,
-              subscriptionEndDate: userProfile?.subscription_end || null,
-              displayName: session.user.user_metadata?.display_name || session.user.email,
-              name: session.user.user_metadata?.display_name || session.user.email,
-            });
+            if (isMounted) {
+              // Define o usuário mesmo sem dados de perfil completos
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                isAdmin: session.user.app_metadata?.role === 'admin',
+                isSubscribed: userProfile?.subscribed || false,
+                subscriptionTier: userProfile?.subscription_tier || null,
+                subscriptionEnd: userProfile?.subscription_end || null,
+                subscriptionEndDate: userProfile?.subscription_end || null,
+                displayName: session.user.user_metadata?.display_name || session.user.email,
+                name: session.user.user_metadata?.display_name || session.user.email,
+              });
+            }
             
             // Check subscription status - com tratamento de erro para não bloquear
             console.log("Verificando status da assinatura...");
             try {
-              await checkSubscription();
+              if (isMounted) await checkSubscription();
             } catch (subError) {
               console.error("Erro ao verificar assinatura, continuando...", subError);
               // Não bloqueia o fluxo
@@ -77,49 +88,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (profileError) {
             console.error("Erro ao processar dados do usuário:", profileError);
             // Ainda define o usuário com dados básicos se houver erro ao buscar perfil
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              isAdmin: session.user.app_metadata?.role === 'admin',
-              isSubscribed: false,
-              subscriptionTier: null,
-              subscriptionEnd: null,
-              subscriptionEndDate: null,
-              displayName: session.user.user_metadata?.display_name || session.user.email,
-              name: session.user.user_metadata?.display_name || session.user.email,
-            });
+            if (isMounted) {
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                isAdmin: session.user.app_metadata?.role === 'admin',
+                isSubscribed: false,
+                subscriptionTier: null,
+                subscriptionEnd: null,
+                subscriptionEndDate: null,
+                displayName: session.user.user_metadata?.display_name || session.user.email,
+                name: session.user.user_metadata?.display_name || session.user.email,
+              });
+            }
           }
-        } else {
+        } else if (isMounted) {
           console.log("Nenhum usuário autenticado");
           setUser(null);
         }
       } catch (error) {
         console.error('Auth effect error:', error);
-        setUser(null);
+        if (isMounted) setUser(null);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     // Adicionando um timeout para garantir que isLoading será definido como false
     const timeoutId = setTimeout(() => {
-      if (isLoading) {
+      if (isLoading && isMounted) {
         console.log("Timeout de segurança acionado no AuthContext");
         setIsLoading(false);
       }
-    }, 8000);
+    }, 5000);
 
     checkUser();
 
     // Subscribe to auth changes
-    const authListener = supabase.auth.onAuthStateChange(
+    const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event);
         
         if (event === 'SIGNED_OUT') {
           console.log("Usuário desconectado");
-          setUser(null);
-          setIsLoading(false);
+          if (isMounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
         } else if (event === 'SIGNED_IN' && session) {
           console.log("Usuário conectado:", session.user.email);
           try {
@@ -152,21 +167,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              isAdmin: session.user.app_metadata?.role === 'admin',
-              isSubscribed: userProfile?.subscribed || false,
-              subscriptionTier: userProfile?.subscription_tier || null,
-              subscriptionEnd: userProfile?.subscription_end || null,
-              subscriptionEndDate: userProfile?.subscription_end || null,
-              displayName: session.user.user_metadata?.display_name || session.user.email,
-              name: session.user.user_metadata?.display_name || session.user.email,
-            });
+            if (isMounted) {
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                isAdmin: session.user.app_metadata?.role === 'admin',
+                isSubscribed: userProfile?.subscribed || false,
+                subscriptionTier: userProfile?.subscription_tier || null,
+                subscriptionEnd: userProfile?.subscription_end || null,
+                subscriptionEndDate: userProfile?.subscription_end || null,
+                displayName: session.user.user_metadata?.display_name || session.user.email,
+                name: session.user.user_metadata?.display_name || session.user.email,
+              });
+            }
             
             // Check subscription status - com tratamento para não bloquear
             try {
-              await checkSubscription();
+              if (isMounted) await checkSubscription();
             } catch (error) {
               console.error("Erro ao verificar assinatura após login:", error);
               // Não bloqueia o fluxo
@@ -174,15 +191,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (error) {
             console.error('Error setting up user data:', error);
           } finally {
-            setIsLoading(false);
+            if (isMounted) setIsLoading(false);
           }
         }
       }
     );
 
     return () => {
+      isMounted = false;
       clearTimeout(timeoutId);
-      authListener.data.subscription.unsubscribe();
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
