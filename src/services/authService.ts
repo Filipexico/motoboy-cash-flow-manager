@@ -46,5 +46,6 @@ export const registerUser = async (email: string, password: string, name?: strin
 
 export const logoutUser = async () => {
   console.log('Realizando logout');
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 };

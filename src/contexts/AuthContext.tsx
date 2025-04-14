@@ -1,24 +1,21 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@/types';
+import React, { createContext, useContext, useEffect } from 'react';
 import { AuthContextType } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { loginUser, registerUser, logoutUser } from '@/services/authService';
 import { checkSubscription } from '@/services/subscriptionService';
+import { useAuthState } from '@/hooks/useAuthState';
 
-// Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, setUser, isLoading, setIsLoading, updateUserData } = useAuthState();
   const { toast } = useToast();
-  
-  // Check if user is authenticated
+
   useEffect(() => {
     let isMounted = true;
+    
     const checkUser = async () => {
       try {
         console.log("Verificando sessão do usuário...");
@@ -51,19 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.error("Erro ao buscar perfil do usuário:", profileError);
             }
 
-            if (isMounted) {
-              setUser({
-                id: session.user.id,
-                email: session.user.email || '',
-                isAdmin: session.user.app_metadata?.role === 'admin',
-                isSubscribed: userProfile?.subscribed || false,
-                subscriptionTier: userProfile?.subscription_tier || null,
-                subscriptionEnd: userProfile?.subscription_end || null,
-                subscriptionEndDate: userProfile?.subscription_end || null,
-                displayName: session.user.user_metadata?.display_name || session.user.email,
-                name: session.user.user_metadata?.display_name || session.user.email,
-              });
-            }
+            await updateUserData(session.user, userProfile);
             
             try {
               if (isMounted) await checkSubscription(user, setUser);
@@ -73,17 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (profileError) {
             console.error("Erro ao processar dados do usuário:", profileError);
             if (isMounted) {
-              setUser({
-                id: session.user.id,
-                email: session.user.email || '',
-                isAdmin: session.user.app_metadata?.role === 'admin',
-                isSubscribed: false,
-                subscriptionTier: null,
-                subscriptionEnd: null,
-                subscriptionEndDate: null,
-                displayName: session.user.user_metadata?.display_name || session.user.email,
-                name: session.user.user_metadata?.display_name || session.user.email,
-              });
+              await updateUserData(session.user);
             }
           }
         } else if (isMounted) {
@@ -107,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     checkUser();
 
-    // Subscribe to auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth state changed:", event);
       if (event === 'SIGNED_OUT') {
@@ -119,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === 'SIGNED_IN' && session) {
         console.log("Usuário conectado:", session.user.email);
         try {
-          // Check user profile
           const { data: userProfile, error: profileError } = await supabase
             .from('subscribers')
             .select('*')
@@ -131,17 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (isMounted) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              isAdmin: session.user.app_metadata?.role === 'admin',
-              isSubscribed: userProfile?.subscribed || false,
-              subscriptionTier: userProfile?.subscription_tier || null,
-              subscriptionEnd: userProfile?.subscription_end || null,
-              subscriptionEndDate: userProfile?.subscription_end || null,
-              displayName: session.user.user_metadata?.display_name || session.user.email,
-              name: session.user.user_metadata?.display_name || session.user.email,
-            });
+            await updateUserData(session.user, userProfile);
           }
 
           try {
@@ -164,7 +127,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Login function
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
@@ -173,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Login realizado com sucesso',
         description: 'Bem-vindo de volta!',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro no login:', error);
       toast({
         title: 'Erro no login',
@@ -186,7 +148,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Register function
   const register = async (email: string, password: string, name?: string) => {
     try {
       setIsLoading(true);
@@ -195,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Cadastro realizado com sucesso',
         description: 'Bem-vindo ao MotoControle!',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro no registro:', error);
       toast({
         title: 'Erro no cadastro',
@@ -208,7 +169,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Logout
   const logout = async () => {
     await logoutUser();
     setUser(null);
@@ -231,7 +191,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// Hook for using auth context
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

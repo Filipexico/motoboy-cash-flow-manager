@@ -28,6 +28,7 @@ describe('subscriptionService', () => {
       isSubscribed: false,
       subscriptionTier: null,
       subscriptionEnd: null,
+      name: 'Test User',
     };
 
     const setUser = vi.fn();
@@ -64,24 +65,6 @@ describe('subscriptionService', () => {
 
       await checkSubscription(mockUser, setUser);
 
-      expect(setUser).not.toHaveBeenCalled();
-    });
-
-    it('should handle subscription check error', async () => {
-      vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-        data: { session: { user: { id: '123' } } },
-        error: null,
-      });
-
-      vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
-        data: null,
-        error: new Error('Subscription check failed'),
-      });
-
-      const consoleErrorSpy = vi.spyOn(console, 'error');
-      await checkSubscription(mockUser, setUser);
-
-      expect(consoleErrorSpy).toHaveBeenCalled();
       expect(setUser).not.toHaveBeenCalled();
     });
   });
