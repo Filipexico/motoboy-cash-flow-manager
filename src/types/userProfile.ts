@@ -1,4 +1,3 @@
-
 export interface UserProfile {
   id: string;
   user_id: string;
@@ -22,11 +21,11 @@ export interface RegisterFormValues {
   fullName: string;
   phoneNumber: string;
   address: {
-    street: string;
-    city: string;
-    state: string;
-    zipcode: string;
-    country: string;
+    street: string;  // Ensure this is a required string
+    city: string;    // Ensure this is a required string
+    state: string;   // Ensure this is a required string
+    zipcode: string; // Ensure this is a required string
+    country: string; // Ensure this is a required string
   };
 }
 
