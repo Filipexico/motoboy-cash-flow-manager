@@ -54,7 +54,7 @@ serve(async (req) => {
     try {
       await supabaseClient.rpc('create_subscribers_if_not_exists');
       logStep("Subscribers table created if it didn't exist");
-    } catch (error) {
+    } catch (error: any) {
       logStep("Error creating subscribers table", { error: error.message });
       // Continue anyway, the table might already exist
     }
@@ -75,6 +75,19 @@ serve(async (req) => {
     }
 
     try {
+      // Validate the Stripe key first
+      if (!stripeKey.startsWith('sk_')) {
+        logStep("Invalid Stripe key format", { keyPrefix: stripeKey.substring(0, 5) });
+        return new Response(JSON.stringify({ 
+          error: "Invalid Stripe API key format. Must start with 'sk_'",
+          simulated: true,
+          url: `${req.headers.get("origin") || "https://motoboy-cash-flow-manager.lovable.app"}/subscription`
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       const stripe = new Stripe(stripeKey, {
         apiVersion: "2023-10-16",
       });
@@ -84,10 +97,10 @@ serve(async (req) => {
       try {
         await stripe.customers.list({ limit: 1 });
         logStep("Stripe API key is valid");
-      } catch (stripeError) {
+      } catch (stripeError: any) {
         logStep("Stripe API key is invalid", { error: stripeError.message });
         return new Response(JSON.stringify({ 
-          error: "Invalid Stripe API key",
+          error: "Invalid Stripe API key: " + stripeError.message,
           simulated: true,
           url: `${req.headers.get("origin") || "https://motoboy-cash-flow-manager.lovable.app"}/subscription`
         }), {
@@ -96,11 +109,45 @@ serve(async (req) => {
         });
       }
 
+      // Lookup customers by email
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
       if (customers.data.length === 0) {
-        logStep("No Stripe customer found for this user");
-        throw new Error("No Stripe customer found for this user");
+        logStep("No Stripe customer found for this user, creating new customer");
+        
+        // Create a new customer for this user
+        try {
+          const newCustomer = await stripe.customers.create({
+            email: user.email,
+            name: user.user_metadata?.display_name || user.email,
+            metadata: {
+              user_id: user.id
+            }
+          });
+          
+          logStep("Created new Stripe customer", { customerId: newCustomer.id });
+          
+          // Create portal session with new customer
+          const origin = req.headers.get("origin") || "https://motoboy-cash-flow-manager.lovable.app";
+          const portalSession = await stripe.billingPortal.sessions.create({
+            customer: newCustomer.id,
+            return_url: `${origin}/subscription`,
+          });
+          
+          logStep("Customer portal session created for new customer", { 
+            sessionId: portalSession.id, 
+            url: portalSession.url 
+          });
+
+          return new Response(JSON.stringify({ url: portalSession.url }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        } catch (createError: any) {
+          logStep("Error creating customer", { error: createError.message });
+          throw new Error(`Failed to create Stripe customer: ${createError.message}`);
+        }
       }
+      
       const customerId = customers.data[0].id;
       logStep("Found Stripe customer", { customerId });
 
@@ -115,7 +162,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
-    } catch (stripeError) {
+    } catch (stripeError: any) {
       logStep("Stripe error", { error: stripeError.message });
       return new Response(JSON.stringify({ 
         error: stripeError.message,
@@ -126,7 +173,7 @@ serve(async (req) => {
         status: 200,
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in customer-portal", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {

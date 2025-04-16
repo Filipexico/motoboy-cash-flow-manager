@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -20,6 +21,7 @@ import Admin from "./pages/Admin";
 import Subscription from "./pages/Subscription";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
+import FAQ from "./pages/FAQ";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -168,6 +170,14 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <MainLayout>
             <Subscription />
+          </MainLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/faq" element={
+        <ProtectedRoute>
+          <MainLayout>
+            <FAQ />
           </MainLayout>
         </ProtectedRoute>
       } />
