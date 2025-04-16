@@ -28,22 +28,36 @@ export const registerUser = async (formValues: RegisterFormValues) => {
   console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
-    // Primeiro, vamos garantir que o endereço seja um objeto JSON válido
-    const addressObject = formatAddressToJSON(formValues.address);
+    // Sempre garantir que o endereço seja um objeto JavaScript válido
+    let addressObject = {};
     
-    // Log detalhado dos dados processados
+    if (typeof formValues.address === 'string') {
+      try {
+        addressObject = JSON.parse(formValues.address);
+      } catch (e) {
+        console.error('Endereço não é um JSON válido, usando objeto vazio', e);
+      }
+    } else if (typeof formValues.address === 'object' && formValues.address !== null) {
+      addressObject = formValues.address;
+    }
+    
+    // Garantir que o objeto tenha todos os campos necessários
+    const formattedAddress = {
+      street: addressObject.street || '',
+      city: addressObject.city || '',
+      state: addressObject.state || '',
+      zipcode: addressObject.zipcode || '',
+      country: addressObject.country || 'Brasil'
+    };
+    
     console.log('Dados de registro processados:', {
       email: formValues.email,
       fullName: formValues.fullName,
       phoneNumber: formValues.phoneNumber,
-      address: addressObject
+      address: formattedAddress
     });
     
-    // Garantir que o endereço é um objeto, não uma string
-    console.log('Tipo do endereço:', typeof addressObject);
-    console.log('Endereço formatado:', JSON.stringify(addressObject));
-    
-    // Registrar o usuário com os dados formatados corretamente
+    // Registrar o usuário com metadados formatados corretamente
     const { data, error } = await supabase.auth.signUp({
       email: formValues.email,
       password: formValues.password,
@@ -51,7 +65,7 @@ export const registerUser = async (formValues: RegisterFormValues) => {
         data: {
           full_name: formValues.fullName,
           phone_number: formValues.phoneNumber,
-          address: addressObject
+          address: formattedAddress
         },
       },
     });

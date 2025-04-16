@@ -165,7 +165,8 @@ serve(async (req) => {
         logStep("Created new customer", { customerId });
       }
 
-      const priceAmount = planType === 'premium' ? 1500 : 9900; // R$15 for premium, R$99 for enterprise
+      // Definir valores corretos para os planos
+      const priceAmount = planType === 'premium' ? 1500 : 9900; // R$15 para premium, R$99 para enterprise
       const origin = req.headers.get("origin") || "https://motoboy-cash-flow-manager.lovable.app";
       
       const session = await stripe.checkout.sessions.create({
@@ -181,7 +182,7 @@ serve(async (req) => {
                   ? 'Acesso a todas as funcionalidades premium' 
                   : 'Acesso a todas as funcionalidades empresariais',
               },
-              unit_amount: priceAmount,
+              unit_amount: priceAmount,  // 1500 = R$15,00 | 9900 = R$99,00
               recurring: {
                 interval: 'month',
               },

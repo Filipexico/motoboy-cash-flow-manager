@@ -42,8 +42,25 @@ export const setupNewUserData = async (userId: string, email: string) => {
     const userMetadata = userData?.user?.user_metadata || {};
     console.log('User metadata for profile creation:', userMetadata);
     
-    // Formatar o endereço corretamente
-    const addressData = formatAddressToJSON(userMetadata.address || {});
+    // Formatar o endereço corretamente para garantir que é um objeto válido
+    let addressData;
+    try {
+      // Tratar casos onde address pode ser string JSON, objeto ou null
+      if (typeof userMetadata.address === 'string') {
+        try {
+          const parsedAddress = JSON.parse(userMetadata.address);
+          addressData = formatAddressToJSON(parsedAddress);
+        } catch (e) {
+          addressData = { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
+        }
+      } else {
+        addressData = formatAddressToJSON(userMetadata.address || {});
+      }
+    } catch (e) {
+      console.error('Error formatting address:', e);
+      addressData = { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
+    }
+    
     console.log('Formatted address for profile:', addressData);
     console.log('Address type:', typeof addressData);
     

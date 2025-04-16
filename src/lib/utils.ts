@@ -23,7 +23,13 @@ export function formatAddressToJSON(address: any): any {
     console.log('formatAddressToJSON - input:', address);
     console.log('formatAddressToJSON - tipo:', typeof address);
     
-    // Se já for um objeto válido, retornar diretamente
+    // Se for null ou undefined, retornar estrutura vazia
+    if (address === null || address === undefined) {
+      console.log('formatAddressToJSON - endereço nulo ou undefined, retornando estrutura vazia');
+      return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
+    }
+    
+    // Se já for um objeto válido, retornar estrutura padronizada
     if (typeof address === 'object' && address !== null) {
       const result = {
         street: address.street || '',
@@ -39,16 +45,31 @@ export function formatAddressToJSON(address: any): any {
     // Se for string, tentar converter para objeto
     if (typeof address === 'string') {
       try {
+        // Verificar se a string está vazia
+        if (!address.trim()) {
+          console.log('formatAddressToJSON - string vazia, retornando estrutura vazia');
+          return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
+        }
+        
         console.log('formatAddressToJSON - convertendo string para objeto');
-        const parsed = JSON.parse(address);
+        let parsed;
+        try {
+          parsed = JSON.parse(address);
+        } catch (e) {
+          console.error('Erro ao converter endereço de string para objeto:', e);
+          return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
+        }
+        
+        // Recursivamente formatar o objeto parsed
         return formatAddressToJSON(parsed);
       } catch (e) {
-        console.error('Erro ao converter endereço de string para objeto:', e);
+        console.error('Erro ao processar string de endereço:', e);
+        return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
       }
     }
     
     // Caso não seja válido, retornar estrutura vazia
-    console.log('formatAddressToJSON - retornando estrutura vazia padrão');
+    console.log('formatAddressToJSON - tipo não reconhecido, retornando estrutura vazia padrão');
     return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
   } catch (error) {
     console.error('Erro ao formatar endereço:', error);
