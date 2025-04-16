@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -99,6 +100,7 @@ const Register = () => {
         fullName: data.fullName,
         phoneNumber: data.phoneNumber,
         address: data.address,
+        lgpdConsent: data.lgpdConsent
       };
       
       await registerUser(formValues);
