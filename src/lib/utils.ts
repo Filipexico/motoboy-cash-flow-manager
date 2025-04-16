@@ -14,11 +14,16 @@ export function formatDate(date: Date): string {
   });
 }
 
-export function formatAddressToJSON(address: any): object {
+/**
+ * Converte um objeto de endereço ou string em um formato JSON compatível com o Supabase
+ * Esta função garante que o endereço esteja no formato correto para ser armazenado no banco de dados
+ */
+export function formatAddressToJSON(address: any): any {
   try {
     // Se for string, tentar converter para objeto
     if (typeof address === 'string') {
       try {
+        // Verificar se já é uma string JSON válida
         return JSON.parse(address);
       } catch (e) {
         console.error('Erro ao converter endereço de string para objeto:', e);
@@ -44,7 +49,7 @@ export function formatAddressToJSON(address: any): object {
         country: address.country || 'Brasil'
       };
       
-      return JSON.parse(JSON.stringify(validAddress));
+      return validAddress;
     }
     
     // Caso não seja nem string nem objeto, retornar estrutura vazia

@@ -1,7 +1,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Re-export the supabase client para garantir que usamos uma única instância
+// Re-export a instância do Supabase do arquivo integrations/supabase/client
+// para garantir que usamos a mesma instância em todo o aplicativo
 export { supabase };
 
 // Função para verificar o status da sessão
