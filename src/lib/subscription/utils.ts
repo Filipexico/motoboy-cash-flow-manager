@@ -1,4 +1,6 @@
+
 import { supabase } from '@/lib/supabase';
+import { SubscriptionData } from '@/lib/subscription/types';
 
 export const checkSubscriptionDatabase = async (
   userId: string, 
@@ -84,3 +86,4 @@ export const simulateTestSubscription = async (userId: string, plan: 'premium' |
     };
   }
 };
+
