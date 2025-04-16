@@ -37,7 +37,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoading) {
-        console.log("Tempo de carregamento excedido, forçando renderização");
+        console.log("Tempo de carregamento excedido, redirecionando para login");
         setTimeoutOccurred(true);
       }
     }, 2000);
@@ -58,7 +58,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  if (!isAuthenticated && !timeoutOccurred) {
+  if ((!isAuthenticated && timeoutOccurred) || (!isAuthenticated && !isLoading)) {
     return <Navigate to="/login" />;
   }
   

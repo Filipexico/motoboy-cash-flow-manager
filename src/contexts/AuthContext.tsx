@@ -143,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { data } = await loginUser(email, password);
+      const result = await loginUser(email, password);
       
       // We don't need to set the user here as the auth state listener will handle it
       
@@ -152,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: 'Bem-vindo de volta!',
       });
       
-      return data;
+      return result;
     } catch (error: any) {
       console.error('Erro no login:', error);
       toast({
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string, password: string, name?: string) => {
     try {
       setIsLoading(true);
-      const { data } = await registerUser(email, password, name);
+      const result = await registerUser(email, password, name);
       
       // We don't need to set the user here as the auth state listener will handle it
       
@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: 'Bem-vindo ao MotoControle!',
       });
       
-      return data;
+      return result;
     } catch (error: any) {
       console.error('Erro no registro:', error);
       toast({
