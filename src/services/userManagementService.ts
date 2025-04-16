@@ -25,7 +25,7 @@ export const deleteUser = async (userId: string): Promise<boolean> => {
 
 export const updateUserAdminStatus = async (userId: string, isAdmin: boolean): Promise<User | null> => {
   try {
-    // Update user in Supabase
+    // Update user in Supabase using our new function
     const { data, error } = await supabase.rpc('set_user_admin_status', {
       user_id_param: userId,
       is_admin_param: isAdmin
@@ -34,16 +34,6 @@ export const updateUserAdminStatus = async (userId: string, isAdmin: boolean): P
     if (error) {
       console.error('Error updating user admin status:', error);
       throw error;
-    }
-    
-    // Also update the role in user_profiles 
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .update({ role: isAdmin ? 'admin' : 'user' })
-      .eq('user_id', userId);
-    
-    if (profileError) {
-      console.error('Error updating user profile role:', profileError);
     }
     
     // Get the updated user information
@@ -57,7 +47,7 @@ export const updateUserAdminStatus = async (userId: string, isAdmin: boolean): P
       id: userData.user.id,
       email: userData.user.email || '',
       isAdmin,
-      isSubscribed: false, // We would need to fetch this from elsewhere
+      isSubscribed: false,
       subscriptionTier: null,
       subscriptionEnd: null,
       displayName: userData.user.user_metadata?.display_name || userData.user.email || '',
@@ -65,6 +55,30 @@ export const updateUserAdminStatus = async (userId: string, isAdmin: boolean): P
     } : null;
   } catch (error) {
     console.error('Error updating user admin status:', error);
+    throw error;
+  }
+};
+
+export const updateUserSubscription = async (
+  userId: string, 
+  isSubscribed: boolean, 
+  endDate?: Date
+): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.rpc('update_user_subscription', {
+      user_id_param: userId,
+      is_subscribed_param: isSubscribed,
+      subscription_end_param: endDate?.toISOString()
+    });
+
+    if (error) {
+      console.error('Error updating user subscription:', error);
+      throw error;
+    }
+
+    return data || false;
+  } catch (error) {
+    console.error('Error updating user subscription:', error);
     throw error;
   }
 };
