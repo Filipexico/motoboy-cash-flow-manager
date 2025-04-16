@@ -73,13 +73,13 @@ const CreateUserForm = ({ onSuccess }: CreateUserFormProps) => {
       
       if (signUpError) throw signUpError;
       
-      // Create user profile
+      // Create user profile in subscribers table
       if (userData?.user) {
         const { error: profileError } = await supabase
-          .from('user_profiles')
+          .from('subscribers')
           .insert({
             user_id: userData.user.id,
-            full_name: data.fullName,
+            email: data.email,
             role: data.isAdmin ? 'admin' : 'user',
           });
         

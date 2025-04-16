@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { User } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 export const useAuthState = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -14,12 +14,13 @@ export const useAuthState = () => {
     }
 
     try {
+      console.log("Fetching subscriber data for user:", sessionUser.id);
       // First, try to get user profile data from subscribers table
       const { data: subscriberData, error: subscriberError } = await supabase
         .from('subscribers')
         .select('*')
         .eq('user_id', sessionUser.id)
-        .single();
+        .maybeSingle();
       
       console.log("Subscriber data:", subscriberData);
       

@@ -2,10 +2,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 import { RegisterFormValues } from '@/types/userProfile';
 import { useAuthState } from '@/hooks/useAuthState';
+import { setupNewUserData } from '@/services/userService';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -175,43 +176,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log("User created, setting up profile:", data.user.id);
         
-        // 2. Create the user profile with additional information
-        const { error: subscriberError } = await supabase
-          .from('subscribers')
-          .insert({
-            user_id: data.user.id,
-            email: formValues.email,
-            subscribed: false
-          });
+        // Set up default data for the new user
+        await setupNewUserData(data.user.id, formValues.email);
         
-        if (subscriberError) {
-          console.error("Error creating subscriber record:", subscriberError);
-          toast({
-            title: 'Erro ao criar registro',
-            description: 'Sua conta foi criada, mas houve um erro ao salvar informações adicionais.',
-            variant: 'destructive',
-          });
-        }
-        
-        // 3. Also try to create user profile with the full profile information
+        // Update the subscriber record with additional info
         try {
-          // Check if the user_profiles table exists before attempting to insert
-          const { error: tableCheckError } = await supabase
-            .from('subscribers')
-            .select('id')
-            .limit(1);
-            
-          if (!tableCheckError) {
-            // The table exists, attempt to add profile data
-            await supabase.from('subscribers').update({
-              role: 'user',
-              phone_number: formValues.phoneNumber,
-              // Use a jsonb column for address if it exists
-              address_data: formValues.address
-            }).eq('user_id', data.user.id);
-          }
+          await supabase.from('subscribers').update({
+            role: 'user',
+            phone_number: formValues.phoneNumber,
+            address_data: formValues.address
+          }).eq('user_id', data.user.id);
         } catch (profileError) {
-          console.error("Error updating subscriber record with profile data:", profileError);
+          console.error("Error updating subscriber with profile data:", profileError);
           // Continue with registration even if profile update fails
         }
       }

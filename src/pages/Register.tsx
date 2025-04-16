@@ -51,8 +51,11 @@ const Register = () => {
   });
 
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
+    console.log('Form submission initiated', registrationStep);
+    
     if (registrationStep === 1) {
       try {
+        console.log('Validating step 1 fields');
         // Validate step 1 fields
         const step1Valid = await form.trigger(['email', 'password', 'confirmPassword']);
         
@@ -92,6 +95,7 @@ const Register = () => {
         lgpdConsent: data.lgpdConsent
       };
       
+      console.log('Calling registerUser with form values');
       await registerUser(formValues);
       
       toast({
