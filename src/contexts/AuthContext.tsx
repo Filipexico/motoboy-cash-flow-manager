@@ -5,12 +5,12 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { RegisterFormValues } from '@/types/userProfile';
+import { useAuthState } from '@/hooks/useAuthState';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, setUser, isLoading, setIsLoading, updateUserData } = useAuthState();
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const { toast } = useToast();
 
@@ -31,18 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isMounted) {
               try {
                 // Update user state with session data
-                const updatedUser: User = {
-                  id: session.user.id,
-                  email: session.user.email || '',
-                  isAdmin: session.user.app_metadata?.role === 'admin',
-                  isSubscribed: false, // Will be updated later if needed
-                  subscriptionTier: null,
-                  subscriptionEnd: null,
-                  subscriptionEndDate: null,
-                  displayName: session.user.user_metadata?.display_name || session.user.email || '',
-                  name: session.user.user_metadata?.display_name || session.user.email || '',
-                };
-                
+                const updatedUser = await updateUserData(session.user);
                 setUser(updatedUser);
                 setIsLoading(false);
               } catch (error) {
@@ -81,18 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           try {
             // Set user state with session data
-            const updatedUser: User = {
-              id: session.user.id,
-              email: session.user.email || '',
-              isAdmin: session.user.app_metadata?.role === 'admin',
-              isSubscribed: false, // Will be updated later if needed
-              subscriptionTier: null,
-              subscriptionEnd: null,
-              subscriptionEndDate: null,
-              displayName: session.user.user_metadata?.display_name || session.user.email || '',
-              name: session.user.user_metadata?.display_name || session.user.email || '',
-            };
-            
+            const updatedUser = await updateUserData(session.user);
             setUser(updatedUser);
           } catch (profileError) {
             console.error("Error processing user data:", profileError);
@@ -137,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [setIsLoading, setUser, updateUserData]);
 
   // Login function
   const login = async (email: string, password: string) => {
@@ -185,6 +163,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           data: {
             display_name: formValues.fullName,
+            full_name: formValues.fullName,
+            phone_number: formValues.phoneNumber,
+            address: formValues.address
           },
         }
       });
@@ -195,8 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("User created, setting up profile:", data.user.id);
         
         // 2. Create the user profile with additional information
-        // FIX: Using subscribers table instead of user_profiles
-        const { error: profileError } = await supabase
+        const { error: subscriberError } = await supabase
           .from('subscribers')
           .insert({
             user_id: data.user.id,
@@ -204,13 +184,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             subscribed: false
           });
         
-        if (profileError) {
-          console.error("Error creating user profile:", profileError);
+        if (subscriberError) {
+          console.error("Error creating subscriber record:", subscriberError);
           toast({
-            title: 'Erro ao criar perfil',
+            title: 'Erro ao criar registro',
             description: 'Sua conta foi criada, mas houve um erro ao salvar informações adicionais.',
             variant: 'destructive',
           });
+        }
+        
+        // 3. Also create user profile with the full profile information
+        try {
+          await supabase.from('user_profiles').insert({
+            user_id: data.user.id,
+            full_name: formValues.fullName,
+            phone_number: formValues.phoneNumber,
+            address: formValues.address
+          });
+        } catch (profileError) {
+          console.error("Error creating user profile:", profileError);
+          // Continue with registration even if profile creation fails
         }
       }
       

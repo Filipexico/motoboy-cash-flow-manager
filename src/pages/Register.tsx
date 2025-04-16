@@ -51,6 +51,16 @@ const Register = () => {
 
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
     if (registrationStep === 1) {
+      // Validar os campos da primeira etapa antes de avançar
+      const emailValid = form.getFieldState('email').invalid === false;
+      const passwordValid = form.getFieldState('password').invalid === false;
+      const confirmPasswordValid = form.getFieldState('confirmPassword').invalid === false;
+      
+      if (!emailValid || !passwordValid || !confirmPasswordValid) {
+        console.log("Validation errors on step 1:", form.formState.errors);
+        return;
+      }
+      
       setRegistrationStep(2);
       return;
     }
@@ -58,6 +68,8 @@ const Register = () => {
     try {
       setRegisterError(null);
       setIsSubmitting(true);
+      
+      console.log("Form data to submit:", data);
       
       const formValues: RegisterFormValues = {
         email: data.email,
@@ -81,6 +93,11 @@ const Register = () => {
         title: "Cadastro realizado com sucesso!",
         description: "Bem-vindo ao MotoControle. Você será redirecionado em instantes.",
       });
+      
+      // Redirecionar após o registro bem-sucedido
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
       
     } catch (error: any) {
       console.error('Registration error:', error);
