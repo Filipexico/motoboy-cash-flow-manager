@@ -15,6 +15,7 @@ export type Database = {
           email: string | null
           id: string
           role: string | null
+          stripe_customer_id: string | null
           subscribed: boolean | null
           subscription_end: string | null
           subscription_tier: string | null
@@ -26,6 +27,7 @@ export type Database = {
           email?: string | null
           id?: string
           role?: string | null
+          stripe_customer_id?: string | null
           subscribed?: boolean | null
           subscription_end?: string | null
           subscription_tier?: string | null
@@ -37,6 +39,7 @@ export type Database = {
           email?: string | null
           id?: string
           role?: string | null
+          stripe_customer_id?: string | null
           subscribed?: boolean | null
           subscription_end?: string | null
           subscription_tier?: string | null

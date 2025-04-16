@@ -13,3 +13,22 @@ export function formatDate(date: Date): string {
     year: 'numeric'
   });
 }
+
+export function formatAddressToJSON(address: any): string | object {
+  // Se já for uma string JSON ou um objeto, retornar como está
+  if (typeof address === 'string') {
+    try {
+      return JSON.parse(address);
+    } catch (e) {
+      return address;
+    }
+  }
+  
+  // Se for um objeto, retorná-lo diretamente
+  if (typeof address === 'object' && address !== null) {
+    return address;
+  }
+  
+  // Caso contrário, retornar um objeto vazio
+  return {};
+}

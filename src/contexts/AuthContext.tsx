@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -149,6 +150,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Registering new user: ${formValues.email}`);
       setIsLoading(true);
       
+      // Verificar se formValues.address é um objeto válido
+      const address = typeof formValues.address === 'string' 
+        ? JSON.parse(formValues.address) 
+        : formValues.address;
+      
       const { data, error } = await supabase.auth.signUp({
         email: formValues.email,
         password: formValues.password,
@@ -156,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             full_name: formValues.fullName,
             phone_number: formValues.phoneNumber,
-            address: formValues.address
+            address: address
           },
         }
       });

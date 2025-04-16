@@ -27,6 +27,20 @@ export const registerUser = async (formValues: RegisterFormValues) => {
   console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
+    // Verificar se os dados estão sendo enviados corretamente
+    console.log('Dados de registro:', {
+      email: formValues.email,
+      password: formValues.password,
+      fullName: formValues.fullName,
+      phoneNumber: formValues.phoneNumber,
+      address: formValues.address
+    });
+    
+    // Certifique-se de que o endereço é um objeto JSON válido
+    const addressData = typeof formValues.address === 'string' 
+      ? JSON.parse(formValues.address) 
+      : formValues.address;
+    
     // Create the new user with properly formatted metadata
     const { data, error } = await supabase.auth.signUp({
       email: formValues.email,
@@ -35,7 +49,7 @@ export const registerUser = async (formValues: RegisterFormValues) => {
         data: {
           full_name: formValues.fullName,
           phone_number: formValues.phoneNumber,
-          address: formValues.address
+          address: addressData
         },
       },
     });
