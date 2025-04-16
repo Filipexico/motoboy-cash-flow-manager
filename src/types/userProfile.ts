@@ -11,6 +11,7 @@ export interface UserProfile {
     zipcode: string;
     country: string;
   };
+  role?: string;
   created_at: string;
   updated_at: string;
 }
@@ -29,9 +30,19 @@ export interface RegisterFormValues {
     zipcode: string;
     country: string;
   };
+  role?: string;
+  isAdmin?: boolean;
 }
 
 export interface LoginFormValues {
   email: string;
   password: string;
+}
+
+export interface CreateUserFormValues {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  fullName: string;
+  isAdmin: boolean;
 }
