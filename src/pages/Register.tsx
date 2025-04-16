@@ -1,41 +1,55 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
-import { z } from 'zod';
-import { Form } from '@/components/ui/form';
+import * as z from 'zod';
+import { Link } from 'react-router-dom';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ChevronRight } from 'lucide-react';
-import { RegisterFormValues } from '@/types/userProfile';
-import RegisterLayout from '@/components/auth/RegisterLayout';
-import RegisterStepOne, { registerSchema } from '@/components/auth/RegisterStepOne';
-import RegisterStepTwo from '@/components/auth/RegisterStepTwo';
+import { useAuth } from '@/contexts/AuthContext';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+const registerSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres'),
+  fullName: z.string().min(3, 'O nome completo é obrigatório'),
+  phoneNumber: z.string().min(10, 'Telefone inválido'),
+  address: z.object({
+    street: z.string().min(1, 'Rua é obrigatória'),
+    city: z.string().min(1, 'Cidade é obrigatória'),
+    state: z.string().min(2, 'Estado é obrigatório'),
+    zipcode: z.string().min(8, 'CEP inválido'),
+    country: z.string().default('Brasil'),
+  }),
+  lgpdConsent: z.boolean().refine(val => val === true, {
+    message: 'Você precisa aceitar os termos de uso',
+  }),
+});
+
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
-  const { register: registerUser, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { register: registerUser, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
-  const [registrationStep, setRegistrationStep] = useState<1 | 2>(1);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
-  
-  const form = useForm<z.infer<typeof registerSchema>>({
+
+  const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
       password: '',
-      confirmPassword: '',
       fullName: '',
       phoneNumber: '',
       address: {
@@ -47,63 +61,20 @@ const Register = () => {
       },
       lgpdConsent: false,
     },
-    mode: 'onChange',
   });
 
-  const onSubmit = async (data: z.infer<typeof registerSchema>) => {
-    console.log('Form submission initiated', registrationStep);
-    
-    if (registrationStep === 1) {
-      try {
-        console.log('Validating step 1 fields');
-        // Validate step 1 fields
-        const step1Valid = await form.trigger(['email', 'password', 'confirmPassword']);
-        
-        if (!step1Valid) {
-          console.log("Validation errors on step 1:", form.formState.errors);
-          return;
-        }
-        
-        console.log("Step 1 validation passed, proceeding to step 2");
-        setRegistrationStep(2);
-        return;
-      } catch (error) {
-        console.error("Error during step 1 validation:", error);
-        return;
-      }
-    }
-    
+  const onSubmit = async (data: RegisterFormValues) => {
     try {
-      setRegisterError(null);
       setIsSubmitting(true);
+      setRegisterError(null);
       
-      console.log("Form data to submit:", data);
-      
-      const formValues: RegisterFormValues = {
-        email: data.email,
-        password: data.password,
-        confirmPassword: data.confirmPassword,
-        fullName: data.fullName,
-        phoneNumber: data.phoneNumber,
-        address: {
-          street: data.address.street,
-          city: data.address.city,
-          state: data.address.state,
-          zipcode: data.address.zipcode,
-          country: data.address.country,
-        },
-        lgpdConsent: data.lgpdConsent
-      };
-      
-      console.log('Calling registerUser with form values');
-      await registerUser(formValues);
+      await registerUser(data);
       
       toast({
         title: "Cadastro realizado com sucesso!",
         description: "Bem-vindo ao MotoControle. Você será redirecionado em instantes.",
       });
       
-      // Redirecionar após o registro bem-sucedido
       setTimeout(() => {
         navigate('/dashboard');
       }, 1500);
@@ -112,12 +83,8 @@ const Register = () => {
       console.error('Registration error:', error);
       let errorMessage = 'Não foi possível completar o registro. Tente novamente.';
       
-      if (error.message?.includes('email already taken') || error.message?.includes('User already registered')) {
+      if (error.message?.includes('email already taken')) {
         errorMessage = 'Este email já está cadastrado.';
-      } else if (error.message?.includes('invalid email')) {
-        errorMessage = 'O endereço de email fornecido é inválido.';
-      } else if (error.message?.includes('weak password')) {
-        errorMessage = 'A senha fornecida é muito fraca. Use pelo menos 8 caracteres com letras maiúsculas, minúsculas e números.';
       }
       
       setRegisterError(errorMessage);
@@ -126,75 +93,190 @@ const Register = () => {
         description: errorMessage,
         variant: "destructive",
       });
-      
-      if (registrationStep === 2) {
-        setRegistrationStep(1);
-      }
     } finally {
       setIsSubmitting(false);
     }
   };
-  
-  if (authLoading && !isAuthenticated) {
-    return (
-      <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
-        <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
-          <p className="text-gray-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-  
+
   return (
-    <RegisterLayout step={registrationStep} error={registerError}>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {registrationStep === 1 ? (
-            <RegisterStepOne
-              form={form}
-              showPassword={showPassword}
-              showConfirmPassword={showConfirmPassword}
-              setShowPassword={setShowPassword}
-              setShowConfirmPassword={setShowConfirmPassword}
+    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
+      <div className="w-full max-w-xl p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-blue-700">Moto<span className="text-blue-500">Controle</span></h1>
+          <p className="mt-2 text-gray-600">Crie sua conta</p>
+        </div>
+
+        {registerError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro no cadastro</AlertTitle>
+            <AlertDescription>{registerError}</AlertDescription>
+          </Alert>
+        )}
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="seu@email.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          ) : (
-            <RegisterStepTwo form={form} />
-          )}
-          
-          <div className="flex justify-between">
-            {registrationStep === 2 && (
-              <Button 
-                type="button" 
-                variant="outline"
-                onClick={() => setRegistrationStep(1)}
-                disabled={isSubmitting}
-              >
-                Voltar
-              </Button>
-            )}
-            
-            <Button 
-              type="submit" 
-              className={registrationStep === 2 ? "ml-auto" : "w-full"}
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Senha</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="********" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome Completo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="João da Silva" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone</FormLabel>
+                  <FormControl>
+                    <Input placeholder="(11) 99999-9999" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-4">
+              <h3 className="font-medium">Endereço</h3>
+              
+              <FormField
+                control={form.control}
+                name="address.street"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rua</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Rua exemplo, 123" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="address.city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cidade</FormLabel>
+                      <FormControl>
+                        <Input placeholder="São Paulo" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="address.state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado</FormLabel>
+                      <FormControl>
+                        <Input placeholder="SP" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="address.zipcode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CEP</FormLabel>
+                    <FormControl>
+                      <Input placeholder="00000-000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="lgpdConsent"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Concordo com os termos de uso e política de privacidade
+                    </FormLabel>
+                    <FormMessage />
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processando...
-                </>
-              ) : registrationStep === 1 ? (
-                <>
-                  Continuar
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </>
-              ) : 'Finalizar Cadastro'}
+              {isSubmitting ? 'Registrando...' : 'Criar Conta'}
             </Button>
-          </div>
-        </form>
-      </Form>
-    </RegisterLayout>
+          </form>
+        </Form>
+
+        <div className="text-center mt-4">
+          <p className="text-gray-600">
+            Já tem uma conta?{' '}
+            <Link to="/login" className="text-blue-600 hover:underline">
+              Faça login
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

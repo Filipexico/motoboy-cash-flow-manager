@@ -19,7 +19,8 @@ export const setupNewUserData = async (userId: string, email: string) => {
         .insert({
           user_id: userId,
           email: email,
-          subscribed: false
+          subscribed: false,
+          role: 'user'
         });
       
       if (subscriberError) {
@@ -29,25 +30,13 @@ export const setupNewUserData = async (userId: string, email: string) => {
       }
     }
     
-    // 2. Set subscriber role to 'user' if not set
-    const { error: updateRoleError } = await supabase
-      .from('subscribers')
-      .update({ role: 'user' })
-      .eq('user_id', userId)
-      .is('role', null);
-      
-    if (updateRoleError) {
-      console.error('Error updating subscriber role:', updateRoleError);
-    }
-    
-    // 3. Create default expense categories
-    const { data: existingCategories } = await supabase
+    // 2. Create default expense categories
+    const { data: categories } = await supabase
       .from('expense_categories')
       .select('id')
-      .eq('user_id', userId)
-      .limit(1);
+      .eq('user_id', userId);
     
-    if (!existingCategories || existingCategories.length === 0) {
+    if (!categories || categories.length === 0) {
       try {
         const defaultCategories = [
           { name: 'Combustível', user_id: userId },
@@ -82,7 +71,7 @@ export const setupNewUserData = async (userId: string, email: string) => {
 export const getUserProfile = async (userId: string) => {
   try {
     const { data, error } = await supabase
-      .from('subscribers')
+      .from('user_profiles')
       .select('*')
       .eq('user_id', userId)
       .maybeSingle();
@@ -98,7 +87,7 @@ export const getUserProfile = async (userId: string) => {
 export const updateUserProfile = async (userId: string, profileData: any) => {
   try {
     const { data, error } = await supabase
-      .from('subscribers')
+      .from('user_profiles')
       .update(profileData)
       .eq('user_id', userId)
       .select()
