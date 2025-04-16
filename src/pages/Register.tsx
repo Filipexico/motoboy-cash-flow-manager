@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
 import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';

@@ -2,17 +2,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
-import { supabase, logAuthState } from '@/lib/supabase';
-import { checkSubscription } from '@/services/subscriptionService';
-import { useAuthState } from '@/hooks/useAuthState';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@/types';
 import { RegisterFormValues } from '@/types/userProfile';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, setUser, isLoading, setIsLoading, updateUserData } = useAuthState();
-  const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     let isMounted = true;
@@ -25,28 +25,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Set up auth state change listener first
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log("Auth state changed:", event);
+          
           if (session) {
             console.log("Session found in auth state change:", session.user.email);
             if (isMounted) {
               try {
-                // Fetch user profile
-                const { data: userProfile, error: profileError } = await supabase
-                  .from('user_profiles')
-                  .select('*')
-                  .eq('user_id', session.user.id)
-                  .maybeSingle();
-
-                if (profileError) {
-                  console.error("Error fetching user profile:", profileError);
-                }
-
-                // Update user data
-                await updateUserData(session.user, userProfile);
+                // Update user state with session data
+                const updatedUser: User = {
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  isAdmin: session.user.app_metadata?.role === 'admin',
+                  isSubscribed: false, // Will be updated later if needed
+                  subscriptionTier: null,
+                  subscriptionEnd: null,
+                  subscriptionEndDate: null,
+                  displayName: session.user.user_metadata?.display_name || session.user.email || '',
+                  name: session.user.user_metadata?.display_name || session.user.email || '',
+                };
+                
+                setUser(updatedUser);
                 setIsLoading(false);
               } catch (error) {
                 console.error("Error processing user data:", error);
                 if (isMounted) {
-                  await updateUserData(session.user);
                   setIsLoading(false);
                 }
               }
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
-        // Then check for existing session
+        // Check for existing session
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -79,31 +80,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("User authenticated:", session.user.email);
           
           try {
-            // Fetch user profile
-            const { data: userProfile, error: profileError } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
-
-            if (profileError) {
-              console.error("Error fetching user profile:", profileError);
-            }
-
-            // Update user data in state
-            await updateUserData(session.user, userProfile);
+            // Set user state with session data
+            const updatedUser: User = {
+              id: session.user.id,
+              email: session.user.email || '',
+              isAdmin: session.user.app_metadata?.role === 'admin',
+              isSubscribed: false, // Will be updated later if needed
+              subscriptionTier: null,
+              subscriptionEnd: null,
+              subscriptionEndDate: null,
+              displayName: session.user.user_metadata?.display_name || session.user.email || '',
+              name: session.user.user_metadata?.display_name || session.user.email || '',
+            };
             
-            // Check subscription status - but don't wait for it to complete to show the UI
-            if (isMounted && user) {
-              checkSubscription(user, setUser).catch(error => {
-                console.error("Error checking subscription, continuing...", error);
-              });
-            }
+            setUser(updatedUser);
           } catch (profileError) {
             console.error("Error processing user data:", profileError);
-            if (isMounted) {
-              await updateUserData(session.user);
-            }
           } finally {
             if (isMounted) {
               setIsLoading(false);
@@ -166,7 +158,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: 'Bem-vindo de volta!',
       });
       
-      await logAuthState();
       return data;
     } catch (error: any) {
       console.error('Login error:', error);
@@ -221,22 +212,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             variant: 'destructive',
           });
         }
-        
-        // 3. Set up initial user data (expense categories, etc.)
-        try {
-          const { error: setupError } = await supabase.rpc('setup_new_user_data', {
-            user_id_param: data.user.id,
-            email_param: formValues.email
-          });
-          
-          if (setupError) {
-            console.error("Error setting up initial data:", setupError);
-          } else {
-            console.log("Initial user data set up successfully");
-          }
-        } catch (setupError) {
-          console.error("Error calling setup function:", setupError);
-        }
       }
       
       toast({
@@ -244,7 +219,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         description: 'Bem-vindo ao MotoControle!',
       });
       
-      await logAuthState();
       return data;
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -282,13 +256,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Function to check subscription status
+  const checkSubscription = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('subscribers')
+        .select('subscribed, subscription_tier, subscription_end')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setUser(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            isSubscribed: data.subscribed || false,
+            subscriptionTier: data.subscription_tier,
+            subscriptionEnd: data.subscription_end,
+            subscriptionEndDate: data.subscription_end,
+          };
+        });
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+    }
+  };
+
   // Context value
   const value = {
     isAuthenticated: !!user,
     isLoading,
     user,
     initialCheckDone,
-    checkSubscription: () => checkSubscription(user, setUser),
+    checkSubscription,
     logout,
     login,
     register

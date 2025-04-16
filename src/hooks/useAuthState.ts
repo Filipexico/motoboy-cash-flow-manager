@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { User } from '@/types';
 
 export const useAuthState = () => {
@@ -9,7 +9,7 @@ export const useAuthState = () => {
   const updateUserData = useCallback(async (sessionUser: any, userProfile?: any) => {
     if (!sessionUser) {
       setUser(null);
-      return;
+      return null;
     }
 
     // Create a new user object with the updated data
