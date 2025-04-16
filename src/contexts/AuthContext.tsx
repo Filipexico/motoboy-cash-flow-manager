@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +22,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthProvider: Checking user session...");
         if (isMounted) setIsLoading(true);
         
-        // Set up auth state change listener first
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log("Auth state changed:", event);
           
@@ -31,7 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log("Session found in auth state change:", session.user.email);
             if (isMounted) {
               try {
-                // Update user state with session data
                 const updatedUser = await updateUserData(session.user);
                 setUser(updatedUser);
                 setIsLoading(false);
@@ -51,7 +48,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
-        // Check for existing session
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -70,7 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("User authenticated:", session.user.email);
           
           try {
-            // Set user state with session data
             const updatedUser = await updateUserData(session.user);
             setUser(updatedUser);
           } catch (profileError) {
@@ -101,7 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Safety timeout to prevent indefinite loading state
     const timeoutId = setTimeout(() => {
       if (isLoading && isMounted) {
         console.log("Safety timeout triggered in AuthContext");
@@ -118,7 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [setIsLoading, setUser, updateUserData]);
 
-  // Login function
   const login = async (email: string, password: string) => {
     try {
       console.log(`Attempting login for: ${email}`);
@@ -151,19 +144,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Register function
   const register = async (formValues: RegisterFormValues) => {
     try {
       console.log(`Registering new user: ${formValues.email}`);
       setIsLoading(true);
       
-      // 1. Create the auth user
       const { data, error } = await supabase.auth.signUp({
         email: formValues.email,
         password: formValues.password,
         options: {
           data: {
-            display_name: formValues.fullName,
             full_name: formValues.fullName,
             phone_number: formValues.phoneNumber,
             address: formValues.address
@@ -176,20 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log("User created, setting up profile:", data.user.id);
         
-        // Set up default data for the new user
         await setupNewUserData(data.user.id, formValues.email);
-        
-        // Update the subscriber record with additional info
-        try {
-          await supabase.from('subscribers').update({
-            role: 'user',
-            phone_number: formValues.phoneNumber,
-            address_data: formValues.address
-          }).eq('user_id', data.user.id);
-        } catch (profileError) {
-          console.error("Error updating subscriber with profile data:", profileError);
-          // Continue with registration even if profile update fails
-        }
       }
       
       toast({
@@ -211,7 +188,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Logout function
   const logout = async () => {
     try {
       console.log("Logging out user");
@@ -234,7 +210,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Function to check subscription status
   const checkSubscription = async () => {
     if (!user) return;
     
@@ -264,7 +239,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Context value
   const value = {
     isAuthenticated: !!user,
     isLoading,

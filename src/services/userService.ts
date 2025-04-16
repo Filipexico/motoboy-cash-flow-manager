@@ -30,34 +30,31 @@ export const setupNewUserData = async (userId: string, email: string) => {
       }
     }
     
-    // 2. Create default expense categories
-    const { data: categories } = await supabase
-      .from('expense_categories')
+    // 2. Create a user profile if it doesn't exist
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
       .select('id')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .maybeSingle();
     
-    if (!categories || categories.length === 0) {
+    if (!existingProfile) {
       try {
-        const defaultCategories = [
-          { name: 'Combustível', user_id: userId },
-          { name: 'Manutenção', user_id: userId },
-          { name: 'Seguro', user_id: userId },
-          { name: 'Impostos', user_id: userId },
-          { name: 'Limpeza', user_id: userId },
-          { name: 'Outros', user_id: userId }
-        ];
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: userId,
+            full_name: email.split('@')[0],
+            created_at: new Date(),
+            updated_at: new Date()
+          });
         
-        const { error: categoriesError } = await supabase
-          .from('expense_categories')
-          .insert(defaultCategories);
-        
-        if (categoriesError) {
-          console.error('Error creating default categories:', categoriesError);
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
         } else {
-          console.log('Default categories created successfully');
+          console.log('User profile created successfully');
         }
       } catch (error) {
-        console.error('Error setting up expense categories:', error);
+        console.error('Error setting up user profile:', error);
       }
     }
     

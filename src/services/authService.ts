@@ -1,5 +1,6 @@
 
 import { supabase } from '@/lib/supabase';
+import { RegisterFormValues } from '@/types/userProfile';
 
 export const loginUser = async (email: string, password: string) => {
   console.log(`Tentativa de login: ${email}`);
@@ -22,17 +23,19 @@ export const loginUser = async (email: string, password: string) => {
   }
 };
 
-export const registerUser = async (email: string, password: string, name?: string) => {
-  console.log(`Tentativa de registro: ${email}`);
+export const registerUser = async (formValues: RegisterFormValues) => {
+  console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
     // Create the new user
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: formValues.email,
+      password: formValues.password,
       options: {
         data: {
-          display_name: name || email,
+          full_name: formValues.fullName,
+          phone_number: formValues.phoneNumber,
+          address: formValues.address
         },
       },
     });
