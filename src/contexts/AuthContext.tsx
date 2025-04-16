@@ -24,34 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthProvider: Checking user session...");
         if (isMounted) setIsLoading(true);
         
-        // Configurar listener para mudanças de autenticação
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log("Auth state changed:", event);
-          
-          if (session) {
-            console.log("Session found in auth state change:", session.user.email);
-            if (isMounted) {
-              try {
-                const updatedUser = await updateUserData(session.user);
-                setUser(updatedUser);
-                setIsLoading(false);
-              } catch (error) {
-                console.error("Error processing user data:", error);
-                if (isMounted) {
-                  setIsLoading(false);
-                }
-              }
-            }
-          } else {
-            console.log("No session in auth state change");
-            if (isMounted) {
-              setUser(null);
-              setIsLoading(false);
-            }
-          }
-        });
-
-        // Verificar sessão inicial
+        // Primeiro, verificar sessão inicial
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -86,6 +59,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsLoading(false);
           setInitialCheckDone(true);
         }
+        
+        // Configurar listener para mudanças de autenticação
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log("Auth state changed:", event);
+          
+          if (session) {
+            console.log("Session found in auth state change:", session.user.email);
+            if (isMounted) {
+              try {
+                const updatedUser = await updateUserData(session.user);
+                setUser(updatedUser);
+                setIsLoading(false);
+              } catch (error) {
+                console.error("Error processing user data:", error);
+                if (isMounted) {
+                  setIsLoading(false);
+                }
+              }
+            }
+          } else {
+            console.log("No session in auth state change");
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
+          }
+        });
 
         return () => {
           authListener.subscription.unsubscribe();
@@ -179,6 +179,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         try {
           await setupNewUserData(data.user.id, formValues.email);
+          
+          // Importante: Atualizar manualmente o estado do usuário após registro bem-sucedido
+          // para evitar problemas de redirecionamento
+          const updatedUser = await updateUserData(data.user);
+          setUser(updatedUser);
+          setInitialCheckDone(true);
+          
         } catch (profileError) {
           console.error("Error setting up user profile:", profileError);
           // Continue mesmo com erro no perfil

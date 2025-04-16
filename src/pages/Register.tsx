@@ -25,7 +25,7 @@ import { countries } from '@/data/countries';
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
-  const { register: registerUser, isAuthenticated } = useAuth();
+  const { register: registerUser, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,11 +35,26 @@ const Register = () => {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [selectedCountryCode, setSelectedCountryCode] = useState('+55');
   const [isLoadingCEP, setIsLoadingCEP] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
+
+  // Limpar temporizador ao desmontar
+  useEffect(() => {
+    return () => {
+      if (redirectTimer) {
+        clearTimeout(redirectTimer);
+      }
+    };
+  }, [redirectTimer]);
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard');
+      console.log("Register: User is authenticated, redirecting to dashboard");
+      const timer = setTimeout(() => {
+        navigate('/dashboard');
+      }, 500);
+      setRedirectTimer(timer);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, navigate]);
 
@@ -137,7 +152,7 @@ const Register = () => {
       console.log("Address object type:", typeof addressObject);
       
       // Register the user with properly formatted metadata
-      await registerUser({
+      const result = await registerUser({
         email: data.email,
         password: data.password,
         confirmPassword: data.confirmPassword,
@@ -152,9 +167,15 @@ const Register = () => {
         description: "Bem-vindo ao MotoControle. Você será redirecionado em instantes.",
       });
       
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      // Iniciar um temporizador de backup para redirecionamento
+      const timer = setTimeout(() => {
+        if (!isAuthenticated) {
+          console.log("Register: Backup redirect timer triggered");
+          navigate('/dashboard');
+        }
+      }, 3000);
+      
+      setRedirectTimer(timer);
       
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -184,6 +205,21 @@ const Register = () => {
       lookupPostalCode(cep);
     }
   };
+
+  // Se estiver carregando, mostrar indicador
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
+        <div className="w-full max-w-md p-6 space-y-4 bg-white rounded-lg shadow-md text-center">
+          <h2 className="text-xl font-semibold">Processando seu cadastro...</h2>
+          <div className="flex justify-center my-4">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <p className="text-gray-600">Estamos configurando sua conta. Você será redirecionado automaticamente.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
