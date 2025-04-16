@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -181,11 +180,11 @@ const AppRoutes = () => {
       } />
       
       <Route path="/admin" element={
-        <AdminRoute>
+        <ProtectedRoute>
           <MainLayout>
             <Admin />
           </MainLayout>
-        </AdminRoute>
+        </ProtectedRoute>
       } />
       
       <Route path="/admin-debug" element={<AdminDebug />} />

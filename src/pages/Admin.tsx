@@ -1,49 +1,101 @@
 
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Shield } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import PageHeader from '@/components/common/PageHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import UserManagementDialog from '@/components/admin/UserManagementDialog';
-import { updateUserAdminStatus, deleteUser, getAllUsers, updateUserSubscription } from '@/services/userManagementService';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import PageHeader from '@/components/common/PageHeader';
 import UserTable from '@/components/admin/UserTable';
-import AdminStats from '@/components/admin/AdminStats';
-import ComingSoonFeature from '@/components/admin/ComingSoonFeature';
-import { User } from '@/types';
+import { Shield } from 'lucide-react';
 
-const Admin = () => {
+const AdminPage = () => {
   const { user } = useAuth();
+  const [users, setUsers] = useState<any[]>([]);
   const { toast } = useToast();
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
-  
+
   const fetchUsers = async () => {
     try {
-      setIsRefreshing(true);
-      const users = await getAllUsers();
-      setAllUsers(users);
+      const { data: { users }, error } = await supabase.auth.admin.listUsers();
+      if (error) throw error;
+      
+      const enhancedUsers = await Promise.all(users.map(async (user) => {
+        const { data: subscriberData } = await supabase
+          .from('subscribers')
+          .select('role, subscribed')
+          .eq('user_id', user.id)
+          .single();
+        
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata?.full_name || user.email,
+          createdAt: user.created_at,
+          isAdmin: user.app_metadata?.role === 'admin',
+          isSubscribed: subscriberData?.subscribed || false,
+        };
+      }));
+
+      setUsers(enhancedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
         title: "Erro ao carregar usuários",
-        description: "Não foi possível obter a lista de usuários. Tente novamente.",
+        description: "Não foi possível obter a lista de usuários.",
         variant: "destructive",
       });
-    } finally {
-      setIsRefreshing(false);
     }
   };
-  
+
   useEffect(() => {
     fetchUsers();
   }, []);
-  
-  // Redirect if not admin (this is a backup, we also check in App.tsx routes)
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const { error } = await supabase.auth.admin.deleteUser(userId);
+      if (error) throw error;
+
+      toast({
+        title: "Usuário excluído",
+        description: "O usuário foi removido com sucesso.",
+      });
+      
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Erro ao excluir usuário",
+        description: "Não foi possível excluir o usuário.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleAdmin = async (userId: string, makeAdmin: boolean) => {
+    try {
+      const { error } = await supabase.rpc('set_user_admin_status', {
+        user_id_param: userId,
+        is_admin_param: makeAdmin
+      });
+      
+      if (error) throw error;
+
+      toast({
+        title: "Permissões atualizadas",
+        description: `Usuário ${makeAdmin ? 'promovido a administrador' : 'rebaixado para usuário comum'}.`,
+      });
+      
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      toast({
+        title: "Erro ao atualizar permissões",
+        description: "Não foi possível atualizar as permissões do usuário.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!user?.isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
@@ -54,135 +106,28 @@ const Admin = () => {
     );
   }
 
-  const handleToggleAdmin = async (userId: string, currentStatus: boolean) => {
-    try {
-      setIsUpdatingRole(userId);
-      await updateUserAdminStatus(userId, !currentStatus);
-      toast({
-        title: 'Status alterado',
-        description: `Usuário ${!currentStatus ? 'promovido a administrador' : 'rebaixado de administrador'}.`,
-      });
-      fetchUsers();
-    } catch (error) {
-      console.error('Error updating admin status:', error);
-      toast({
-        title: 'Erro ao alterar status',
-        description: 'Não foi possível alterar o status do usuário. Tente novamente.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUpdatingRole(null);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      setIsDeleting(userId);
-      await deleteUser(userId);
-      toast({
-        title: 'Usuário excluído',
-        description: 'O usuário foi removido com sucesso.',
-      });
-      fetchUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast({
-        title: 'Erro ao excluir usuário',
-        description: 'Não foi possível excluir o usuário. Tente novamente.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(null);
-    }
-  };
-
-  const handleToggleSubscription = async (userId: string, currentStatus: boolean) => {
-    try {
-      const endDate = new Date();
-      endDate.setFullYear(endDate.getFullYear() + 1); // 1 year subscription
-      
-      await updateUserSubscription(userId, !currentStatus, !currentStatus ? endDate : undefined);
-      
-      toast({
-        title: 'Assinatura alterada',
-        description: `Assinatura ${!currentStatus ? 'ativada' : 'cancelada'}.`,
-      });
-      fetchUsers();
-    } catch (error) {
-      console.error('Error updating subscription:', error);
-      toast({
-        title: 'Erro ao alterar assinatura',
-        description: 'Não foi possível alterar a assinatura do usuário. Tente novamente.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   return (
     <div>
       <PageHeader
         title="Administração"
-        description="Gerencie usuários, assinaturas e configurações do sistema"
-      >
-        <div className="flex gap-2 items-center">
-          <UserManagementDialog onUserCreated={fetchUsers} />
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={fetchUsers}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <AdminStats users={allUsers} />
-        </div>
-      </PageHeader>
-
-      <Tabs defaultValue="users" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="users">Usuários</TabsTrigger>
-          <TabsTrigger value="logs">Logs de Atividade</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="users">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Gerenciamento de Usuários</CardTitle>
-              <CardDescription>
-                Gerencie todos os usuários do sistema, controle permissões e assinaturas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserTable
-                users={allUsers}
-                currentUserId={user?.id || ''}
-                isUpdatingRole={isUpdatingRole}
-                isDeleting={isDeleting}
-                onToggleAdmin={handleToggleAdmin}
-                onDeleteUser={handleDeleteUser}
-                onToggleSubscription={handleToggleSubscription}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="logs">
-          <ComingSoonFeature
-            title="Logs de Atividade"
-            description="Monitore as ações realizadas no sistema"
+        description="Gerencie usuários e configurações do sistema"
+      />
+      
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Gerenciamento de Usuários</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <UserTable
+            users={users}
+            currentUserId={user.id}
+            onDeleteUser={handleDeleteUser}
+            onToggleAdmin={handleToggleAdmin}
           />
-        </TabsContent>
-        
-        <TabsContent value="settings">
-          <ComingSoonFeature
-            title="Configurações do Sistema"
-            description="Configurações gerais e opções avançadas"
-          />
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-export default Admin;
+export default AdminPage;
