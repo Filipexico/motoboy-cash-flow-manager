@@ -53,6 +53,7 @@ describe('authService', () => {
     const mockUser = {
       email: 'test@example.com',
       password: 'password123',
+      confirmPassword: 'password123',
       fullName: 'Test User',
       phoneNumber: '+1234567890',
       address: {
@@ -70,8 +71,8 @@ describe('authService', () => {
       error: null,
     });
 
-    const result = await registerUser(mockUser);
-    expect(result.data.user).toBeDefined();
+    const response = await registerUser(mockUser);
+    expect(response.user).toBeDefined();
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: mockUser.email,
       password: mockUser.password,

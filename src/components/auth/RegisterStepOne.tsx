@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
@@ -12,14 +11,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-
-interface RegisterStepOneProps {
-  form: UseFormReturn<z.infer<typeof registerSchema>>;
-  showPassword: boolean;
-  showConfirmPassword: boolean;
-  setShowPassword: (show: boolean) => void;
-  setShowConfirmPassword: (show: boolean) => void;
-}
 
 export const registerSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -45,6 +36,14 @@ export const registerSchema = z.object({
   message: 'As senhas não coincidem',
   path: ['confirmPassword'],
 });
+
+interface RegisterStepOneProps {
+  form: UseFormReturn<z.infer<typeof registerSchema>>;
+  showPassword: boolean;
+  showConfirmPassword: boolean;
+  setShowPassword: (show: boolean) => void;
+  setShowConfirmPassword: (show: boolean) => void;
+}
 
 const RegisterStepOne: React.FC<RegisterStepOneProps> = ({
   form,
