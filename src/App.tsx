@@ -18,6 +18,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import AdminDebug from "./pages/AdminDebug";
 import Subscription from "./pages/Subscription";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
@@ -186,6 +187,8 @@ const AppRoutes = () => {
           </MainLayout>
         </AdminRoute>
       } />
+      
+      <Route path="/admin-debug" element={<AdminDebug />} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>

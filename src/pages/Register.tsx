@@ -12,6 +12,7 @@ const Register = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<RegisterFormValues>>({});
   const [registerTimer, setRegisterTimer] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { register, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,6 +39,7 @@ const Register = () => {
     console.log("Address object type: ", typeof completeFormData.address);
 
     try {
+      setError(null);
       await register(completeFormData);
       
       // Limpar qualquer timer existente
@@ -58,6 +60,7 @@ const Register = () => {
       });
     } catch (error: any) {
       console.error('Registration error:', error);
+      setError(error.message || "Ocorreu um erro ao tentar realizar o cadastro.");
       toast({
         title: "Erro no cadastro",
         description: error.message || "Ocorreu um erro ao tentar realizar o cadastro.",
@@ -76,7 +79,7 @@ const Register = () => {
   }, [registerTimer]);
 
   return (
-    <RegisterLayout>
+    <RegisterLayout step={step as 1 | 2} error={error}>
       {step === 1 ? (
         <RegisterStepOne onSubmit={handleStepOneSubmit} isLoading={isLoading} />
       ) : (
