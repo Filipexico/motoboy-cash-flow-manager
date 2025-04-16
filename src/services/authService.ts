@@ -100,14 +100,32 @@ export const logoutUser = async () => {
 export const checkAdminStatus = async () => {
   try {
     console.log('Verificando status do administrador');
-    const { data, error } = await supabase.auth.admin.getUserByEmail('admin@motocontrole.com');
+    // Como não podemos usar getUserByEmail, vamos usar uma consulta para obter o administrador
+    const { data, error } = await supabase
+      .from('subscribers')
+      .select('user_id, email, role')
+      .eq('email', 'admin@motocontrole.com')
+      .eq('role', 'admin')
+      .single();
     
     if (error) {
       console.error('Erro ao verificar administrador:', error);
       return { exists: false, error };
     }
     
-    return { exists: !!data?.user, userData: data?.user };
+    // Se encontrou o administrador, buscamos os detalhes do usuário
+    if (data && data.user_id) {
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(data.user_id);
+      
+      if (userError) {
+        console.error('Erro ao obter detalhes do administrador:', userError);
+        return { exists: false, error: userError };
+      }
+      
+      return { exists: !!userData?.user, userData: userData?.user };
+    }
+    
+    return { exists: false, error: null };
   } catch (error) {
     console.error('Erro ao verificar status do administrador:', error);
     return { exists: false, error };

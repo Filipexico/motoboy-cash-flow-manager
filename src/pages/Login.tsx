@@ -82,12 +82,27 @@ const Login = () => {
       // Debug information
       if (data.email === 'admin@motocontrole.com') {
         try {
-          const { data: checkData, error: checkError } = await supabase.auth.admin.getUserByEmail(data.email);
-          if (checkError) {
-            console.error("Admin user check error:", checkError);
+          // Em vez de getUserByEmail, vamos verificar se o admin existe na tabela 'subscribers'
+          const { data: adminUser, error: adminError } = await supabase
+            .from('subscribers')
+            .select('*')
+            .eq('email', 'admin@motocontrole.com')
+            .eq('role', 'admin')
+            .single();
+          
+          if (adminError) {
+            console.error("Admin user check error:", adminError);
           } else {
-            console.log("Admin user exists:", checkData);
-            setDebugSessionInfo(checkData);
+            console.log("Admin user exists in subscribers:", adminUser);
+            if (adminUser && adminUser.user_id) {
+              const { data: userData, error: userError } = await supabase.auth.admin.getUserById(adminUser.user_id);
+              if (userError) {
+                console.error("Error getting admin user details:", userError);
+              } else {
+                console.log("Admin user details:", userData);
+                setDebugSessionInfo(userData);
+              }
+            }
           }
         } catch (e) {
           console.error("Admin user verification error:", e);
