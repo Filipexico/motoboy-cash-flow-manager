@@ -28,34 +28,41 @@ export const registerUser = async (formValues: RegisterFormValues) => {
   console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
-    // Sempre garantir que o endereço seja um objeto JavaScript válido
-    let addressObject = {};
+    // Formatar o endereço adequadamente para o banco de dados
+    let addressObject: Record<string, string> = {
+      street: '',
+      city: '',
+      state: '',
+      zipcode: '',
+      country: 'Brasil'
+    };
     
     if (typeof formValues.address === 'string') {
       try {
-        addressObject = JSON.parse(formValues.address);
+        const parsed = JSON.parse(formValues.address);
+        if (parsed && typeof parsed === 'object') {
+          addressObject = {
+            street: parsed.street || '',
+            city: parsed.city || '',
+            state: parsed.state || '',
+            zipcode: parsed.zipcode || '',
+            country: parsed.country || 'Brasil'
+          };
+        }
       } catch (e) {
-        console.error('Endereço não é um JSON válido, usando objeto vazio', e);
+        console.error('Endereço não é um JSON válido:', e);
       }
-    } else if (typeof formValues.address === 'object' && formValues.address !== null) {
-      addressObject = formValues.address;
+    } else if (formValues.address && typeof formValues.address === 'object') {
+      addressObject = {
+        street: formValues.address.street || '',
+        city: formValues.address.city || '',
+        state: formValues.address.state || '',
+        zipcode: formValues.address.zipcode || '',
+        country: formValues.address.country || 'Brasil'
+      };
     }
     
-    // Garantir que o objeto tenha todos os campos necessários
-    const formattedAddress = {
-      street: addressObject.street || '',
-      city: addressObject.city || '',
-      state: addressObject.state || '',
-      zipcode: addressObject.zipcode || '',
-      country: addressObject.country || 'Brasil'
-    };
-    
-    console.log('Dados de registro processados:', {
-      email: formValues.email,
-      fullName: formValues.fullName,
-      phoneNumber: formValues.phoneNumber,
-      address: formattedAddress
-    });
+    console.log('Endereço formatado para registro:', addressObject);
     
     // Registrar o usuário com metadados formatados corretamente
     const { data, error } = await supabase.auth.signUp({
@@ -65,7 +72,7 @@ export const registerUser = async (formValues: RegisterFormValues) => {
         data: {
           full_name: formValues.fullName,
           phone_number: formValues.phoneNumber,
-          address: formattedAddress
+          address: addressObject
         },
       },
     });
