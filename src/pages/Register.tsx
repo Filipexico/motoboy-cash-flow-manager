@@ -57,7 +57,7 @@ const Register = () => {
         city: '',
         state: '',
         zipcode: '',
-        country: '',
+        country: 'Brasil',
       },
       lgpdConsent: false,
     },
@@ -124,20 +124,23 @@ const Register = () => {
       // Format phone number with country code
       const phoneWithCountryCode = `${selectedCountryCode} ${data.phoneNumber}`;
       
-      // Register the user
+      // Prepare the full address as a JSON object for user metadata
+      const addressObject = {
+        street: data.address.street,
+        city: data.address.city,
+        state: data.address.state,
+        zipcode: data.address.zipcode,
+        country: data.address.country
+      };
+      
+      // Register the user with properly formatted metadata
       await registerUser({
         email: data.email,
         password: data.password,
         confirmPassword: data.confirmPassword,
         fullName: data.fullName,
         phoneNumber: phoneWithCountryCode,
-        address: {
-          street: data.address.street,
-          city: data.address.city,
-          state: data.address.state,
-          zipcode: data.address.zipcode,
-          country: data.address.country
-        },
+        address: addressObject,
         lgpdConsent: data.lgpdConsent
       });
       

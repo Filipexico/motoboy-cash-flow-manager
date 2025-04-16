@@ -27,7 +27,7 @@ export const registerUser = async (formValues: RegisterFormValues) => {
   console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
-    // Create the new user
+    // Create the new user with properly formatted metadata
     const { data, error } = await supabase.auth.signUp({
       email: formValues.email,
       password: formValues.password,
