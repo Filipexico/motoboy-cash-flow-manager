@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -18,21 +19,10 @@ import { Separator } from '@/components/ui/separator';
 import { registerSchema } from '@/components/auth/RegisterStepOne';
 import RegisterStepOne from '@/components/auth/RegisterStepOne';
 import RegisterStepTwo from '@/components/auth/RegisterStepTwo';
+import { countries } from '@/data/countries';
 
 // Type for form values
 export type RegisterFormValues = z.infer<typeof registerSchema>;
-
-// Country codes for international phone numbers
-const countryCodes = [
-  { code: '+55', country: 'BR', name: 'Brasil' },
-  { code: '+1', country: 'US', name: 'Estados Unidos' },
-  { code: '+351', country: 'PT', name: 'Portugal' },
-  { code: '+44', country: 'GB', name: 'Reino Unido' },
-  { code: '+34', country: 'ES', name: 'Espanha' },
-  { code: '+49', country: 'DE', name: 'Alemanha' },
-  { code: '+33', country: 'FR', name: 'França' },
-  { code: '+39', country: 'IT', name: 'Itália' },
-];
 
 const Register = () => {
   const { register: registerUser, isAuthenticated } = useAuth();
@@ -141,7 +131,13 @@ const Register = () => {
         confirmPassword: data.confirmPassword,
         fullName: data.fullName,
         phoneNumber: phoneWithCountryCode,
-        address: data.address,
+        address: {
+          street: data.address.street,
+          city: data.address.city,
+          state: data.address.state,
+          zipcode: data.address.zipcode,
+          country: data.address.country
+        },
         lgpdConsent: data.lgpdConsent
       });
       
@@ -246,31 +242,34 @@ const Register = () => {
                             className="w-[120px] justify-between flex items-center"
                             type="button"
                           >
-                            <img 
-                              src={`https://flagcdn.com/24x18/${countryCodes.find(c => c.code === selectedCountryCode)?.country.toLowerCase()}.png`} 
-                              alt="Country flag" 
-                              className="h-4 mr-2" 
-                            />
+                            {countries.find(c => c.dialCode === selectedCountryCode)?.flag || '🌐'} 
                             {selectedCountryCode}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[250px] p-2">
-                          <div className="grid gap-1">
-                            <h4 className="font-medium mb-2">Selecione o país</h4>
+                        <PopoverContent className="w-[300px] p-0 max-h-[300px] overflow-y-auto">
+                          <div className="p-2">
+                            <Input 
+                              placeholder="Buscar país..." 
+                              className="mb-2"
+                              onChange={(e) => {
+                                const searchField = document.getElementById('country-search');
+                                if (searchField) {
+                                  searchField.scrollIntoView({ behavior: 'smooth' });
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="grid gap-1 p-2" id="country-search">
                             <RadioGroup
                               value={selectedCountryCode}
                               onValueChange={setSelectedCountryCode}
                             >
-                              {countryCodes.map((country) => (
-                                <div key={country.code} className="flex items-center space-x-2 rounded-md px-2 py-1 hover:bg-gray-100">
-                                  <RadioGroupItem value={country.code} id={country.code} />
-                                  <img 
-                                    src={`https://flagcdn.com/24x18/${country.country.toLowerCase()}.png`} 
-                                    alt={country.name} 
-                                    className="h-4 mr-2" 
-                                  />
-                                  <label htmlFor={country.code} className="text-sm flex-1 cursor-pointer">
-                                    {country.name} ({country.code})
+                              {countries.map((country) => (
+                                <div key={country.dialCode} className="flex items-center space-x-2 rounded-md px-2 py-1 hover:bg-gray-100">
+                                  <RadioGroupItem value={country.dialCode} id={country.dialCode} />
+                                  <span className="mr-2">{country.flag}</span>
+                                  <label htmlFor={country.dialCode} className="text-sm flex-1 cursor-pointer">
+                                    {country.name} ({country.dialCode})
                                   </label>
                                 </div>
                               ))}
