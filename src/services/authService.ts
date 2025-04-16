@@ -36,7 +36,7 @@ export const registerUser = async (formValues: RegisterFormValues) => {
       email: formValues.email,
       fullName: formValues.fullName,
       phoneNumber: formValues.phoneNumber,
-      address: JSON.stringify(addressObject)
+      address: addressObject
     });
     
     // Registrar o usuário com os dados formatados corretamente

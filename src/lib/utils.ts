@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -20,39 +19,27 @@ export function formatDate(date: Date): string {
  */
 export function formatAddressToJSON(address: any): any {
   try {
-    // Se for string, tentar converter para objeto
-    if (typeof address === 'string') {
-      try {
-        // Verificar se já é uma string JSON válida
-        return JSON.parse(address);
-      } catch (e) {
-        console.error('Erro ao converter endereço de string para objeto:', e);
-        // Fallback: criar um objeto com valores padrão
-        return { 
-          street: address || '', 
-          city: '', 
-          state: '', 
-          zipcode: '', 
-          country: 'Brasil' 
-        };
-      }
-    }
-    
-    // Se já for um objeto, garantir a estrutura correta
+    // Se já for um objeto válido, retornar diretamente
     if (typeof address === 'object' && address !== null) {
-      // Criar uma cópia sanitizada do objeto para evitar referências
-      const validAddress = {
+      return {
         street: address.street || '',
         city: address.city || '',
         state: address.state || '',
         zipcode: address.zipcode || '',
         country: address.country || 'Brasil'
       };
-      
-      return validAddress;
     }
     
-    // Caso não seja nem string nem objeto, retornar estrutura vazia
+    // Se for string, tentar converter para objeto
+    if (typeof address === 'string') {
+      try {
+        return formatAddressToJSON(JSON.parse(address));
+      } catch (e) {
+        console.error('Erro ao converter endereço de string para objeto:', e);
+      }
+    }
+    
+    // Caso não seja válido, retornar estrutura vazia
     return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
   } catch (error) {
     console.error('Erro ao formatar endereço:', error);

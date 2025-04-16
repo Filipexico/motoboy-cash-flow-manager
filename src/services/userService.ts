@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { formatAddressToJSON } from '@/lib/utils';
 
@@ -42,7 +41,7 @@ export const setupNewUserData = async (userId: string, email: string) => {
     const userMetadata = userData?.user?.user_metadata || {};
     console.log('User metadata for profile creation:', userMetadata);
     
-    // Formatar o endereço corretamente e converter para string JSON
+    // Formatar o endereço corretamente
     const addressData = formatAddressToJSON(userMetadata.address || {});
     console.log('Formatted address for profile:', addressData);
     
@@ -55,14 +54,12 @@ export const setupNewUserData = async (userId: string, email: string) => {
     
     if (!existingProfile) {
       try {
-        // Converter endereço para string JSON para satisfazer o tipo no banco de dados
         const { error: profileError } = await supabase
           .from('user_profiles')
           .insert({
             user_id: userId,
             full_name: userMetadata.full_name || email.split('@')[0],
             phone_number: userMetadata.phone_number || null,
-            // Usar o endereço já formatado como JSON
             address: addressData
           });
         
