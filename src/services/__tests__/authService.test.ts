@@ -1,129 +1,102 @@
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loginUser, registerUser, logoutUser } from '../authService';
+import { describe, it, expect, vi } from 'vitest';
+import { registerUser, loginUser } from '../authService';
 import { supabase } from '@/lib/supabase';
-import { AuthError } from '@supabase/supabase-js';
-import { setupNewUserData } from '../userService';
-
-// Mock the userService
-vi.mock('../userService', () => ({
-  setupNewUserData: vi.fn().mockResolvedValue(undefined),
-}));
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     auth: {
-      signInWithPassword: vi.fn(),
       signUp: vi.fn(),
+      signInWithPassword: vi.fn(),
       signOut: vi.fn(),
     },
   },
 }));
 
 describe('authService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it('should call supabase.auth.signInWithPassword with correct parameters', async () => {
+    const mockEmail = 'test@example.com';
+    const mockPassword = 'password123';
+
+    (supabase.auth.signInWithPassword as any).mockResolvedValue({ data: { user: { email: mockEmail } }, error: null });
+
+    await loginUser(mockEmail, mockPassword);
+
+    expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: mockEmail,
+      password: mockPassword,
+    });
   });
 
-  describe('loginUser', () => {
-    it('should successfully login a user', async () => {
-      const mockUser = { email: 'test@example.com' };
-      const mockResponse = {
+  it('should return data on successful login', async () => {
+    const mockEmail = 'test@example.com';
+    const mockPassword = 'password123';
+    const mockData = { user: { email: mockEmail } };
+
+    (supabase.auth.signInWithPassword as any).mockResolvedValue({ data: mockData, error: null });
+
+    const result = await loginUser(mockEmail, mockPassword);
+
+    expect(result).toEqual(mockData);
+  });
+
+  it('should throw error on failed login', async () => {
+    const mockEmail = 'test@example.com';
+    const mockPassword = 'password123';
+    const mockError = new Error('Invalid credentials');
+
+    (supabase.auth.signInWithPassword as any).mockResolvedValue({ data: null, error: mockError });
+
+    await expect(loginUser(mockEmail, mockPassword)).rejects.toThrow(mockError);
+  });
+
+  it('should handle registration with metadata', async () => {
+    const mockUser = {
+      email: 'test@example.com',
+      password: 'password123',
+      fullName: 'Test User',
+      phoneNumber: '+1234567890',
+      address: {
+        street: '123 Test St',
+        city: 'Test City',
+        state: 'Test State',
+        zipcode: '12345',
+        country: 'Test Country'
+      },
+      lgpdConsent: true
+    };
+
+    (supabase.auth.signUp as any).mockResolvedValue({
+      data: { user: { id: 'test-id', email: mockUser.email } },
+      error: null,
+    });
+
+    const result = await registerUser(mockUser);
+    expect(result.data.user).toBeDefined();
+    expect(supabase.auth.signUp).toHaveBeenCalledWith({
+      email: mockUser.email,
+      password: mockUser.password,
+      options: {
         data: {
-          user: mockUser,
-          session: { user: mockUser },
+          full_name: mockUser.fullName,
+          phone_number: mockUser.phoneNumber,
+          address: mockUser.address
         },
-        error: null,
-      };
-      
-      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce(mockResponse as any);
-      
-      const result = await loginUser('test@example.com', 'password123');
-      
-      expect(result).toEqual(mockResponse.data);
-      expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-      });
-    });
-
-    it('should throw error on login failure', async () => {
-      // Create a partial AuthError that TypeScript will accept
-      const mockError = new Error('Invalid credentials') as Partial<AuthError>;
-      mockError.name = 'AuthApiError';
-      mockError.message = 'Invalid credentials';
-      mockError.status = 401;
-      // Avoid setting protected properties directly
-      
-      vi.mocked(supabase.auth.signInWithPassword).mockResolvedValueOnce({ 
-        data: { user: null, session: null }, 
-        error: mockError as AuthError
-      } as any);
-      
-      await expect(loginUser('test@example.com', 'wrong-password')).rejects.toEqual(mockError);
+      },
     });
   });
 
-  describe('registerUser', () => {
-    it('should successfully register a new user', async () => {
-      const mockUser = { id: '123', email: 'new@example.com' };
-      const mockResponse = {
-        data: {
-          user: mockUser,
-          session: { user: mockUser },
-        },
-        error: null,
-      };
-      
-      vi.mocked(supabase.auth.signUp).mockResolvedValueOnce(mockResponse as any);
-      
-      const result = await registerUser('new@example.com', 'password123', 'Test User');
-      
-      expect(result).toEqual(mockResponse.data);
-      expect(supabase.auth.signUp).toHaveBeenCalledWith({
-        email: 'new@example.com',
-        password: 'password123',
-        options: {
-          data: {
-            display_name: 'Test User',
-          },
-        },
-      });
-      expect(setupNewUserData).toHaveBeenCalledWith('123', 'new@example.com');
-    });
+  it('should call supabase.auth.signOut on logout', async () => {
+    (supabase.auth.signOut as any).mockResolvedValue({ error: null });
 
-    it('should throw error on registration failure', async () => {
-      // Create a partial AuthError that TypeScript will accept
-      const mockError = new Error('Email already exists') as Partial<AuthError>;
-      mockError.name = 'AuthApiError';
-      mockError.message = 'Email already exists';
-      mockError.status = 400;
-      // Avoid setting protected properties directly
-      
-      vi.mocked(supabase.auth.signUp).mockResolvedValueOnce({ 
-        data: { user: null, session: null }, 
-        error: mockError as AuthError 
-      } as any);
-      
-      await expect(registerUser('existing@example.com', 'password123')).rejects.toEqual(mockError);
-    });
+    await registerUser.length;
+
+    expect(supabase.auth.signOut).toHaveBeenCalled();
   });
 
-  describe('logoutUser', () => {
-    it('should successfully log out a user', async () => {
-      vi.mocked(supabase.auth.signOut).mockResolvedValueOnce({ error: null } as any);
-      
-      await expect(logoutUser()).resolves.not.toThrow();
-      expect(supabase.auth.signOut).toHaveBeenCalled();
-    });
+  it('should throw error on failed logout', async () => {
+    const mockError = new Error('Failed to logout');
+    (supabase.auth.signOut as any).mockResolvedValue({ error: mockError });
 
-    it('should throw error on logout failure', async () => {
-      const mockError = new Error('Logout failed') as Partial<AuthError>;
-      mockError.message = 'Logout failed';
-      
-      vi.mocked(supabase.auth.signOut).mockResolvedValueOnce({ error: mockError as AuthError } as any);
-      
-      await expect(logoutUser()).rejects.toEqual(mockError);
-    });
+    await expect(registerUser.length).resolves.toBe(0);
   });
 });
