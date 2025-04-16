@@ -67,10 +67,11 @@ export const simulateTestSubscription = async (userId: string, plan: 'premium' |
       throw error;
     }
     
+    // Fix TypeScript error by explicitly typing the return value
     return {
       subscribed: true,
-      subscription_tier: plan,
-      subscription_end: endDate.toISOString()
+      subscription_tier: plan as string, // Explicitly cast to string
+      subscription_end: endDate.toISOString() as string // Explicitly cast to string
     };
   } catch (error) {
     console.error('Error simulating subscription:', error);
