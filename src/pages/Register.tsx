@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Link } from 'react-router-dom';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -16,32 +15,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { PopoverContent, Popover, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-
-// Define the registration form schema
-const registerSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string()
-    .min(8, 'A senha deve ter pelo menos 8 caracteres')
-    .regex(/[A-Z]/, 'A senha deve conter pelo menos uma letra maiúscula')
-    .regex(/[a-z]/, 'A senha deve conter pelo menos uma letra minúscula')
-    .regex(/[0-9]/, 'A senha deve conter pelo menos um número'),
-  confirmPassword: z.string().min(1, 'Confirme sua senha'),
-  fullName: z.string().min(3, 'O nome completo é obrigatório'),
-  phoneNumber: z.string().min(10, 'Telefone inválido'),
-  address: z.object({
-    street: z.string().min(1, 'Rua é obrigatória'),
-    city: z.string().min(1, 'Cidade é obrigatória'),
-    state: z.string().min(1, 'Estado é obrigatório'),
-    zipcode: z.string().min(1, 'CEP é obrigatório'),
-    country: z.string().min(1, 'País é obrigatório'),
-  }),
-  lgpdConsent: z.boolean().refine(val => val === true, {
-    message: 'Você precisa aceitar os termos de uso',
-  }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "As senhas não coincidem",
-  path: ["confirmPassword"],
-});
+import { registerSchema } from '@/components/auth/RegisterStepOne';
+import RegisterStepOne from '@/components/auth/RegisterStepOne';
+import RegisterStepTwo from '@/components/auth/RegisterStepTwo';
 
 // Type for form values
 export type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -229,84 +205,13 @@ const Register = () => {
               <h3 className="text-lg font-medium">Informações de acesso</h3>
               <Separator />
               
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="seu@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <RegisterStepOne 
+                form={form}
+                showPassword={showPassword}
+                showConfirmPassword={showConfirmPassword}
+                setShowPassword={setShowPassword}
+                setShowConfirmPassword={setShowConfirmPassword}
               />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            type={showPassword ? "text" : "password"} 
-                            placeholder="********" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <div className="mt-2">
-                        <Progress value={passwordStrength} className="h-2" />
-                        <p className="text-xs text-gray-500 mt-1">
-                          {passwordStrength <= 20 && "Senha fraca"}
-                          {passwordStrength > 20 && passwordStrength <= 60 && "Senha média"}
-                          {passwordStrength > 60 && passwordStrength <= 80 && "Senha forte"}
-                          {passwordStrength > 80 && "Senha excelente"}
-                        </p>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirme sua senha</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input 
-                            type={showConfirmPassword ? "text" : "password"} 
-                            placeholder="********" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
             </div>
 
             <div className="space-y-4">

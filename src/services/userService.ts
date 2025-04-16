@@ -43,9 +43,7 @@ export const setupNewUserData = async (userId: string, email: string) => {
           .from('user_profiles')
           .insert({
             user_id: userId,
-            full_name: email.split('@')[0],
-            created_at: new Date(),
-            updated_at: new Date()
+            full_name: email.split('@')[0]
           });
         
         if (profileError) {
