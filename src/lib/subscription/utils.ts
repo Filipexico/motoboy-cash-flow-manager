@@ -86,4 +86,3 @@ export const simulateTestSubscription = async (userId: string, plan: 'premium' |
     };
   }
 };
-

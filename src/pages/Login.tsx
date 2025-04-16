@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Info, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const loginSchema = z.object({
@@ -32,10 +32,12 @@ const Login = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
   
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
+      console.log("User is authenticated, redirecting to dashboard");
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
@@ -53,7 +55,15 @@ const Login = () => {
       setLoginError(null);
       setIsSubmitting(true);
       console.log("Tentando login com:", data.email);
-      await login(data.email, data.password);
+      
+      // Attempt login
+      const result = await login(data.email, data.password);
+      console.log("Login result:", result);
+      
+      if (result?.error) {
+        throw new Error(result.error.message);
+      }
+      
       // The navigation will happen automatically via the useEffect when isAuthenticated changes
     } catch (error: any) {
       console.error('Login error:', error);
@@ -62,6 +72,10 @@ const Login = () => {
       // Handle specific error messages
       if (error.message?.includes('Invalid login credentials')) {
         errorMessage = 'Email ou senha incorretos.';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Email não confirmado. Por favor, verifique sua caixa de entrada para confirmar seu email.';
+      } else if (error.message?.includes('network')) {
+        errorMessage = 'Erro de conexão. Verifique sua conexão com a internet.';
       }
       
       setLoginError(errorMessage);
@@ -81,7 +95,7 @@ const Login = () => {
       <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
         <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
-          <p className="text-gray-600">Carregando...</p>
+          <p className="text-gray-600">Verificando autenticação...</p>
         </div>
       </div>
     );
@@ -168,8 +182,24 @@ const Login = () => {
       
       <div className="mt-8 text-center text-sm text-gray-500">
         <p>Dicas para testar:</p>
-        <p>• Tentando criar uma conta? Use um email válido e uma senha de pelo menos 6 caracteres.</p>
-        <p>• O servidor Supabase pode levar alguns momentos para processar seu registro.</p>
+        <p>• Use um email válido e uma senha de pelo menos 6 caracteres.</p>
+        <p>• Se você não tem uma conta, crie uma na página de cadastro.</p>
+        <button 
+          onClick={() => setShowDebugInfo(!showDebugInfo)}
+          className="text-blue-500 hover:underline flex items-center mt-2 mx-auto"
+        >
+          <Info className="h-3 w-3 mr-1" /> {showDebugInfo ? 'Ocultar' : 'Mostrar'} informações de depuração
+        </button>
+        
+        {showDebugInfo && (
+          <div className="mt-4 text-left bg-gray-100 p-3 rounded text-xs overflow-auto max-h-40">
+            <p>API URL: {window.location.origin}</p>
+            <p>isAuthenticated: {String(isAuthenticated)}</p>
+            <p>isLoading: {String(authLoading)}</p>
+            <p>isSubmitting: {String(isSubmitting)}</p>
+            <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'https://qewlxnjqojxprkodfdqf.supabase.co'}</p>
+          </div>
+        )}
       </div>
     </div>
   );

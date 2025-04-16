@@ -14,10 +14,11 @@ export const supabase = (() => {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        storageKey: 'motocontrole-auth-storage-key' // Add unique storage key
+        storageKey: 'motocontrole-auth-storage-key', // Unique storage key to avoid conflicts
+        detectSessionInUrl: true // Ensure redirect handling works
       }
     });
-    console.log('Supabase client initialized');
+    console.log('Supabase client initialized with proper configuration');
   }
   return supabaseInstance;
 })();
