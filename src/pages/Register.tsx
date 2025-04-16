@@ -47,22 +47,27 @@ const Register = () => {
       },
       lgpdConsent: false,
     },
+    mode: 'onChange',
   });
 
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
     if (registrationStep === 1) {
-      // Validar os campos da primeira etapa antes de avançar
-      const emailValid = form.getFieldState('email').invalid === false;
-      const passwordValid = form.getFieldState('password').invalid === false;
-      const confirmPasswordValid = form.getFieldState('confirmPassword').invalid === false;
-      
-      if (!emailValid || !passwordValid || !confirmPasswordValid) {
-        console.log("Validation errors on step 1:", form.formState.errors);
+      try {
+        // Validate step 1 fields
+        const step1Valid = await form.trigger(['email', 'password', 'confirmPassword']);
+        
+        if (!step1Valid) {
+          console.log("Validation errors on step 1:", form.formState.errors);
+          return;
+        }
+        
+        console.log("Step 1 validation passed, proceeding to step 2");
+        setRegistrationStep(2);
+        return;
+      } catch (error) {
+        console.error("Error during step 1 validation:", error);
         return;
       }
-      
-      setRegistrationStep(2);
-      return;
     }
     
     try {

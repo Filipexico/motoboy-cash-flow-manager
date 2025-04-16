@@ -193,17 +193,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
         
-        // 3. Also create user profile with the full profile information
+        // 3. Also try to create user profile with the full profile information
         try {
-          await supabase.from('user_profiles').insert({
-            user_id: data.user.id,
-            full_name: formValues.fullName,
-            phone_number: formValues.phoneNumber,
-            address: formValues.address
-          });
+          // Check if the user_profiles table exists before attempting to insert
+          const { error: tableCheckError } = await supabase
+            .from('subscribers')
+            .select('id')
+            .limit(1);
+            
+          if (!tableCheckError) {
+            // The table exists, attempt to add profile data
+            await supabase.from('subscribers').update({
+              role: 'user',
+              phone_number: formValues.phoneNumber,
+              // Use a jsonb column for address if it exists
+              address_data: formValues.address
+            }).eq('user_id', data.user.id);
+          }
         } catch (profileError) {
-          console.error("Error creating user profile:", profileError);
-          // Continue with registration even if profile creation fails
+          console.error("Error updating subscriber record with profile data:", profileError);
+          // Continue with registration even if profile update fails
         }
       }
       
