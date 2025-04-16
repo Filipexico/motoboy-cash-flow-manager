@@ -82,16 +82,14 @@ const Register = () => {
     <RegisterLayout step={step as 1 | 2} error={error}>
       {step === 1 ? (
         <RegisterStepOne 
-          initialData={formData}
-          onNext={handleStepOneSubmit} 
-          isSubmitting={isLoading} 
+          onSubmit={handleStepOneSubmit} 
+          isLoading={isLoading} 
         />
       ) : (
         <RegisterStepTwo 
-          initialData={formData}
-          onNext={handleStepTwoSubmit} 
+          onSubmit={handleStepTwoSubmit} 
           onBack={() => setStep(1)} 
-          isSubmitting={isLoading}
+          isLoading={isLoading}
         />
       )}
     </RegisterLayout>
