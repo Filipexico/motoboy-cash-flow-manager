@@ -34,7 +34,11 @@ export const useSubscription = () => {
       console.log('Manually checking subscription status...');
       
       try {
-        const { data, error } = await supabase.functions.invoke<StripeResponse>('check-subscription');
+        const { data, error } = await supabase.functions.invoke<{
+          subscribed: boolean;
+          subscription_tier: string | null;
+          subscription_end: string | null;
+        }>('check-subscription');
         
         if (error) {
           console.error('Error checking subscription:', error);
@@ -53,8 +57,8 @@ export const useSubscription = () => {
         if (data) {
           const subscriptionData: SubscriptionData = {
             subscribed: Boolean(data.subscribed),
-            subscription_tier: data.subscription_tier || null,
-            subscription_end: data.subscription_end || null
+            subscription_tier: data.subscription_tier,
+            subscription_end: data.subscription_end
           };
           
           setSubscription(subscriptionData);
