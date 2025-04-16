@@ -39,6 +39,10 @@ export const registerUser = async (formValues: RegisterFormValues) => {
       address: addressObject
     });
     
+    // Garantir que o endereço é um objeto, não uma string
+    console.log('Tipo do endereço:', typeof addressObject);
+    console.log('Endereço formatado:', JSON.stringify(addressObject));
+    
     // Registrar o usuário com os dados formatados corretamente
     const { data, error } = await supabase.auth.signUp({
       email: formValues.email,

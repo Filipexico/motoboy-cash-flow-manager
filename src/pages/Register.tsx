@@ -134,6 +134,7 @@ const Register = () => {
       };
       
       console.log("Address object being sent:", addressObject);
+      console.log("Address object type:", typeof addressObject);
       
       // Register the user with properly formatted metadata
       await registerUser({
