@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthProvider: Checking user session...");
         if (isMounted) setIsLoading(true);
         
+        // Configurar listener para mudanças de autenticação
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log("Auth state changed:", event);
           
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
+        // Verificar sessão inicial
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -98,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Safety timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       if (isLoading && isMounted) {
         console.log("Safety timeout triggered in AuthContext");
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [setIsLoading, setUser, updateUserData]);
 
+  // Login function
   const login = async (email: string, password: string) => {
     try {
       console.log(`Attempting login for: ${email}`);
@@ -146,12 +150,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Register function
   const register = async (formValues: RegisterFormValues) => {
     try {
       console.log(`Registering new user: ${formValues.email}`);
       setIsLoading(true);
       
-      // Formatar o endereço corretamente usando nossa função utilitária
+      // Garantir que o endereço seja um objeto JSON válido
       const addressObject = formatAddressToJSON(formValues.address);
       console.log("Formatted address for registration:", addressObject);
       
@@ -172,7 +177,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log("User created, setting up profile:", data.user.id);
         
-        await setupNewUserData(data.user.id, formValues.email);
+        try {
+          await setupNewUserData(data.user.id, formValues.email);
+        } catch (profileError) {
+          console.error("Error setting up user profile:", profileError);
+          // Continue mesmo com erro no perfil
+        }
       }
       
       toast({
@@ -194,6 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Logout function
   const logout = async () => {
     try {
       console.log("Logging out user");
@@ -216,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Check subscription
   const checkSubscription = async () => {
     if (!user) return;
     
@@ -224,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('subscribers')
         .select('subscribed, subscription_tier, subscription_end')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       
@@ -245,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Context value
   const value = {
     isAuthenticated: !!user,
     isLoading,

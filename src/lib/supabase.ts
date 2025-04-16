@@ -1,35 +1,38 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Re-export the supabase client to ensure we use a single instance
+// Re-export the supabase client para garantir que usamos uma única instância
 export { supabase };
 
-// Export for easy access to check authentication status
+// Função para verificar o status da sessão
 export const getSessionStatus = async () => {
   try {
-    console.log('Checking session status...');
+    console.log('Verificando status da sessão...');
     const { data, error } = await supabase.auth.getSession();
     if (error) {
-      console.error('Error getting session:', error);
+      console.error('Erro ao obter sessão:', error);
       throw error;
     }
-    console.log('Session status:', data.session ? 'Active' : 'No active session');
+    console.log('Status da sessão:', data.session ? 'Ativa' : 'Sem sessão ativa');
     return { session: data.session, error: null };
   } catch (error) {
-    console.error('Error in getSessionStatus:', error);
+    console.error('Erro em getSessionStatus:', error);
     return { session: null, error };
   }
 };
 
-// Debug function to log current auth state
+// Função de debug para verificar o estado de autenticação
 export const logAuthState = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  console.log('Current auth state:', session ? 'Authenticated' : 'Not authenticated');
-  if (session) {
-    console.log('User ID:', session.user.id);
-    console.log('User email:', session.user.email);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log('Estado atual de autenticação:', session ? 'Autenticado' : 'Não autenticado');
+    if (session) {
+      console.log('ID do usuário:', session.user.id);
+      console.log('Email do usuário:', session.user.email);
+    }
+    return session;
+  } catch (error) {
+    console.error('Erro ao verificar estado de autenticação:', error);
+    return null;
   }
-  return session;
 };
-
-console.log('Supabase client initialized with proper configuration');

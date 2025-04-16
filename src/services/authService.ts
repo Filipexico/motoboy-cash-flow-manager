@@ -1,6 +1,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { RegisterFormValues } from '@/types/userProfile';
+import { formatAddressToJSON } from '@/lib/utils';
 
 export const loginUser = async (email: string, password: string) => {
   console.log(`Tentativa de login: ${email}`);
@@ -27,35 +28,18 @@ export const registerUser = async (formValues: RegisterFormValues) => {
   console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
-    // Log para debug dos dados recebidos
-    console.log('Dados de registro recebidos:', JSON.stringify(formValues, null, 2));
+    // Primeiro, vamos garantir que o endereço seja um objeto JSON válido
+    const addressObject = formatAddressToJSON(formValues.address);
     
-    // Garantir que o endereço seja um objeto JSON válido, não uma string
-    let addressData;
-    
-    if (typeof formValues.address === 'string') {
-      try {
-        addressData = JSON.parse(formValues.address);
-        console.log('Endereço convertido de string para objeto:', addressData);
-      } catch (e) {
-        console.error('Erro ao converter endereço de string para objeto:', e);
-        addressData = formValues.address;
-      }
-    } else {
-      addressData = formValues.address;
-      console.log('Endereço já é um objeto:', addressData);
-    }
-    
-    console.log('Dados de usuário sendo enviados ao Supabase:', {
+    // Log detalhado dos dados processados
+    console.log('Dados de registro processados:', {
       email: formValues.email,
-      metadata: {
-        full_name: formValues.fullName,
-        phone_number: formValues.phoneNumber,
-        address: addressData
-      }
+      fullName: formValues.fullName,
+      phoneNumber: formValues.phoneNumber,
+      addressObject: JSON.stringify(addressObject)
     });
     
-    // Create the new user with properly formatted metadata
+    // Registrar o usuário com os dados formatados corretamente
     const { data, error } = await supabase.auth.signUp({
       email: formValues.email,
       password: formValues.password,
@@ -63,7 +47,7 @@ export const registerUser = async (formValues: RegisterFormValues) => {
         data: {
           full_name: formValues.fullName,
           phone_number: formValues.phoneNumber,
-          address: addressData
+          address: addressObject
         },
       },
     });

@@ -1,11 +1,12 @@
 
 import { supabase } from '@/lib/supabase';
+import { formatAddressToJSON } from '@/lib/utils';
 
 export const setupNewUserData = async (userId: string, email: string) => {
   try {
     console.log(`Setting up default data for user: ${email} (${userId})`);
     
-    // 1. Check if subscriber record exists
+    // 1. Verificar se o registro de assinante já existe
     const { data: existingSubscriber } = await supabase
       .from('subscribers')
       .select('id')
@@ -13,7 +14,7 @@ export const setupNewUserData = async (userId: string, email: string) => {
       .maybeSingle();
     
     if (!existingSubscriber) {
-      // Create subscriber record
+      // Criar registro de assinante
       const { error: subscriberError } = await supabase
         .from('subscribers')
         .insert({
@@ -30,17 +31,22 @@ export const setupNewUserData = async (userId: string, email: string) => {
       }
     }
     
-    // 2. Tente obter os metadados do usuário para o perfil
-    const { data: userData, error: userError } = await supabase.auth.getUser(userId);
+    // 2. Obter os metadados do usuário para o perfil
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
     if (userError) {
       console.error('Error fetching user data:', userError);
+      return false;
     }
     
     const userMetadata = userData?.user?.user_metadata || {};
     console.log('User metadata for profile creation:', userMetadata);
     
-    // 3. Create a user profile if it doesn't exist
+    // Formatar o endereço corretamente
+    let addressData = formatAddressToJSON(userMetadata.address || {});
+    console.log('Formatted address for profile:', addressData);
+    
+    // 3. Verificar se o perfil já existe
     const { data: existingProfile } = await supabase
       .from('user_profiles')
       .select('id')
@@ -55,23 +61,25 @@ export const setupNewUserData = async (userId: string, email: string) => {
             user_id: userId,
             full_name: userMetadata.full_name || email.split('@')[0],
             phone_number: userMetadata.phone_number || null,
-            address: userMetadata.address || null
+            address: addressData
           });
         
         if (profileError) {
           console.error('Error creating user profile:', profileError);
+          return false;
         } else {
           console.log('User profile created successfully');
         }
       } catch (error) {
         console.error('Error setting up user profile:', error);
+        return false;
       }
     }
     
     return true;
   } catch (error) {
     console.error('Error setting up default data:', error);
-    throw error;
+    return false;
   }
 };
 
@@ -93,6 +101,11 @@ export const getUserProfile = async (userId: string) => {
 
 export const updateUserProfile = async (userId: string, profileData: any) => {
   try {
+    // Garantir que o endereço seja um objeto JSON válido se fornecido
+    if (profileData.address) {
+      profileData.address = formatAddressToJSON(profileData.address);
+    }
+    
     const { data, error } = await supabase
       .from('user_profiles')
       .update(profileData)

@@ -15,31 +15,42 @@ export function formatDate(date: Date): string {
 }
 
 export function formatAddressToJSON(address: any): object {
-  // Se for uma string, tentar converter para objeto
-  if (typeof address === 'string') {
-    try {
-      return JSON.parse(address);
-    } catch (e) {
-      console.error('Error parsing address string:', e);
-      // Fallback: criar objeto com a string como valor de street
-      return { street: address, city: '', state: '', zipcode: '', country: '' };
+  try {
+    // Se for string, tentar converter para objeto
+    if (typeof address === 'string') {
+      try {
+        return JSON.parse(address);
+      } catch (e) {
+        console.error('Erro ao converter endereço de string para objeto:', e);
+        // Fallback: criar um objeto com valores padrão
+        return { 
+          street: address || '', 
+          city: '', 
+          state: '', 
+          zipcode: '', 
+          country: 'Brasil' 
+        };
+      }
     }
-  }
-  
-  // Se já for um objeto, garantir que tenha a estrutura correta
-  if (typeof address === 'object' && address !== null) {
-    // Garantir que todos os campos existam
-    const validAddress = {
-      street: address.street || '',
-      city: address.city || '',
-      state: address.state || '',
-      zipcode: address.zipcode || '',
-      country: address.country || 'Brasil'
-    };
     
-    return validAddress;
+    // Se já for um objeto, garantir a estrutura correta
+    if (typeof address === 'object' && address !== null) {
+      // Criar uma cópia sanitizada do objeto para evitar referências
+      const validAddress = {
+        street: address.street || '',
+        city: address.city || '',
+        state: address.state || '',
+        zipcode: address.zipcode || '',
+        country: address.country || 'Brasil'
+      };
+      
+      return JSON.parse(JSON.stringify(validAddress));
+    }
+    
+    // Caso não seja nem string nem objeto, retornar estrutura vazia
+    return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
+  } catch (error) {
+    console.error('Erro ao formatar endereço:', error);
+    return { street: '', city: '', state: '', zipcode: '', country: 'Brasil' };
   }
-  
-  // Caso contrário, retornar um objeto vazio com estrutura válida
-  return { street: '', city: '', state: '', zipcode: '', country: '' };
 }
