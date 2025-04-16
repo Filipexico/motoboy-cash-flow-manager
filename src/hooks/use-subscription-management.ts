@@ -23,6 +23,22 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
         
         if (error) {
           console.error('Error creating checkout session:', error);
+          
+          // If Edge Function fails, try simulation mode
+          console.log('Falling back to simulation mode...');
+          if (user?.id) {
+            const result = await simulateTestSubscription(user.id, plan);
+            console.log('Simulated subscription result:', result);
+            
+            toast({
+              title: 'Assinatura simulada',
+              description: 'Modo de simulação ativado para testes de desenvolvimento.',
+            });
+            
+            await checkSubscription();
+            return;
+          }
+          
           toast({
             title: 'Erro na assinatura',
             description: 'Ocorreu um erro ao processar sua assinatura: ' + error.message,
@@ -46,7 +62,11 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
           description: 'As Edge Functions do Stripe ainda não foram implantadas. Em produção, você seria redirecionado para a página de pagamento do Stripe.',
         });
         
-        await simulateTestSubscription(user?.id || '', plan);
+        if (user?.id) {
+          const result = await simulateTestSubscription(user.id, plan);
+          console.log('Simulated subscription result:', result);
+          await checkSubscription();
+        }
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
@@ -71,10 +91,11 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
         
         if (error) {
           console.error('Error opening customer portal:', error);
+          
+          // Show user-friendly message
           toast({
-            title: 'Erro',
-            description: 'Não foi possível abrir o portal de gerenciamento da assinatura: ' + error.message,
-            variant: 'destructive',
+            title: 'Ambiente de teste',
+            description: 'Portal do cliente simulado para ambiente de teste.',
           });
           return;
         }

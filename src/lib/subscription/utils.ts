@@ -26,9 +26,9 @@ export const checkSubscriptionDatabase = async (
     
     if (data) {
       setSubscription({
-        subscribed: data.subscribed || false,
-        subscription_tier: data.subscription_tier,
-        subscription_end: data.subscription_end
+        subscribed: data.subscribed === true, // Explicit boolean casting
+        subscription_tier: data.subscription_tier || null,
+        subscription_end: data.subscription_end || null
       });
     } else {
       setSubscription({

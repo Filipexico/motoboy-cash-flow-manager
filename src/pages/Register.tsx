@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const registerSchema = z.object({
@@ -28,7 +28,7 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
-  const { register, isAuthenticated } = useAuth();
+  const { register, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,13 +58,7 @@ const Register = () => {
       
       await register(data.email, data.password, data.name);
       
-      toast({
-        title: "Registro realizado com sucesso",
-        description: "Você será redirecionado para o painel.",
-      });
-      
-      // Navegação explícita após registro bem-sucedido
-      navigate('/dashboard');
+      // Navigation will happen automatically via the useEffect when isAuthenticated changes
     } catch (error: any) {
       console.error('Registration error:', error);
       let errorMessage = 'Não foi possível completar o registro. Tente novamente.';
@@ -87,6 +81,18 @@ const Register = () => {
       setIsSubmitting(false);
     }
   };
+  
+  // Show loading indicator if auth is still initializing
+  if (authLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
+        <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
@@ -165,7 +171,12 @@ const Register = () => {
             />
             
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Processando...' : 'Cadastrar'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processando...
+                </>
+              ) : 'Cadastrar'}
             </Button>
           </form>
         </Form>

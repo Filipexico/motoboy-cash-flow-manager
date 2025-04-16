@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const loginSchema = z.object({
@@ -27,7 +27,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,28 +54,38 @@ const Login = () => {
       setIsSubmitting(true);
       console.log("Tentando login com:", data.email);
       await login(data.email, data.password);
-      toast({
-        title: "Login realizado com sucesso",
-        description: "Bem-vindo de volta!",
-      });
-      // Navegação explícita após login bem-sucedido
-      navigate('/dashboard');
+      // The navigation will happen automatically via the useEffect when isAuthenticated changes
     } catch (error: any) {
       console.error('Login error:', error);
-      setLoginError(
-        error.message === 'invalid_credentials' ? 
-        'Email ou senha incorretos.' : 
-        'Ocorreu um erro durante o login. Por favor, tente novamente.'
-      );
+      let errorMessage = 'Ocorreu um erro durante o login. Por favor, tente novamente.';
+      
+      // Handle specific error messages
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Email ou senha incorretos.';
+      }
+      
+      setLoginError(errorMessage);
       toast({
         title: "Erro no login",
-        description: "Email ou senha incorretos. Por favor, tente novamente.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+  
+  // Show loading indicator if auth is still initializing
+  if (authLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
+        <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-500" />
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
@@ -136,7 +146,12 @@ const Login = () => {
             />
             
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Entrando...' : 'Entrar'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Entrando...
+                </>
+              ) : 'Entrar'}
             </Button>
           </form>
         </Form>
