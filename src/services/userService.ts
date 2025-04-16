@@ -30,7 +30,17 @@ export const setupNewUserData = async (userId: string, email: string) => {
       }
     }
     
-    // 2. Create a user profile if it doesn't exist
+    // 2. Tente obter os metadados do usuário para o perfil
+    const { data: userData, error: userError } = await supabase.auth.getUser(userId);
+    
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+    }
+    
+    const userMetadata = userData?.user?.user_metadata || {};
+    console.log('User metadata for profile creation:', userMetadata);
+    
+    // 3. Create a user profile if it doesn't exist
     const { data: existingProfile } = await supabase
       .from('user_profiles')
       .select('id')
@@ -43,7 +53,9 @@ export const setupNewUserData = async (userId: string, email: string) => {
           .from('user_profiles')
           .insert({
             user_id: userId,
-            full_name: email.split('@')[0]
+            full_name: userMetadata.full_name || email.split('@')[0],
+            phone_number: userMetadata.phone_number || null,
+            address: userMetadata.address || null
           });
         
         if (profileError) {

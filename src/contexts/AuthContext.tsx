@@ -7,6 +7,7 @@ import { User } from '@/types';
 import { RegisterFormValues } from '@/types/userProfile';
 import { useAuthState } from '@/hooks/useAuthState';
 import { setupNewUserData } from '@/services/userService';
+import { formatAddressToJSON } from '@/lib/utils';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -150,10 +151,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Registering new user: ${formValues.email}`);
       setIsLoading(true);
       
-      // Verificar se formValues.address é um objeto válido
-      const address = typeof formValues.address === 'string' 
-        ? JSON.parse(formValues.address) 
-        : formValues.address;
+      // Formatar o endereço corretamente usando nossa função utilitária
+      const addressObject = formatAddressToJSON(formValues.address);
+      console.log("Formatted address for registration:", addressObject);
       
       const { data, error } = await supabase.auth.signUp({
         email: formValues.email,
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             full_name: formValues.fullName,
             phone_number: formValues.phoneNumber,
-            address: address
+            address: addressObject
           },
         }
       });

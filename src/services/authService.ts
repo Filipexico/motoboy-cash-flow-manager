@@ -27,19 +27,33 @@ export const registerUser = async (formValues: RegisterFormValues) => {
   console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
-    // Verificar se os dados estão sendo enviados corretamente
-    console.log('Dados de registro:', {
-      email: formValues.email,
-      password: formValues.password,
-      fullName: formValues.fullName,
-      phoneNumber: formValues.phoneNumber,
-      address: formValues.address
-    });
+    // Log para debug dos dados recebidos
+    console.log('Dados de registro recebidos:', JSON.stringify(formValues, null, 2));
     
-    // Certifique-se de que o endereço é um objeto JSON válido
-    const addressData = typeof formValues.address === 'string' 
-      ? JSON.parse(formValues.address) 
-      : formValues.address;
+    // Garantir que o endereço seja um objeto JSON válido, não uma string
+    let addressData;
+    
+    if (typeof formValues.address === 'string') {
+      try {
+        addressData = JSON.parse(formValues.address);
+        console.log('Endereço convertido de string para objeto:', addressData);
+      } catch (e) {
+        console.error('Erro ao converter endereço de string para objeto:', e);
+        addressData = formValues.address;
+      }
+    } else {
+      addressData = formValues.address;
+      console.log('Endereço já é um objeto:', addressData);
+    }
+    
+    console.log('Dados de usuário sendo enviados ao Supabase:', {
+      email: formValues.email,
+      metadata: {
+        full_name: formValues.fullName,
+        phone_number: formValues.phoneNumber,
+        address: addressData
+      }
+    });
     
     // Create the new user with properly formatted metadata
     const { data, error } = await supabase.auth.signUp({

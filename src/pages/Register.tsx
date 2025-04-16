@@ -124,7 +124,7 @@ const Register = () => {
       // Format phone number with country code
       const phoneWithCountryCode = `${selectedCountryCode} ${data.phoneNumber}`;
       
-      // Prepare the full address as a JSON object for user metadata
+      // Criar uma representação de objeto para o endereço
       const addressObject = {
         street: data.address.street,
         city: data.address.city,
@@ -132,6 +132,8 @@ const Register = () => {
         zipcode: data.address.zipcode,
         country: data.address.country
       };
+      
+      console.log("Address object being sent:", addressObject);
       
       // Register the user with properly formatted metadata
       await registerUser({
