@@ -12,13 +12,13 @@ interface SubscriptionData {
 
 interface StripeResponse {
   subscribed?: boolean;
-  subscription_tier?: string;
-  subscription_end?: string;
+  subscription_tier?: string | null;
+  subscription_end?: string | null;
   error?: string;
 }
 
 export const useSubscription = () => {
-  const { user, checkSubscription } = useAuth();
+  const { user, checkSubscription: authCheckSubscription } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [subscription, setSubscription] = useState<null | SubscriptionData>(null);
@@ -34,11 +34,7 @@ export const useSubscription = () => {
       console.log('Manually checking subscription status...');
       
       try {
-        const { data, error } = await supabase.functions.invoke<{
-          subscribed: boolean;
-          subscription_tier: string | null;
-          subscription_end: string | null;
-        }>('check-subscription');
+        const { data, error } = await supabase.functions.invoke<StripeResponse>('check-subscription');
         
         if (error) {
           console.error('Error checking subscription:', error);
@@ -56,14 +52,14 @@ export const useSubscription = () => {
         
         if (data) {
           const subscriptionData: SubscriptionData = {
-            subscribed: Boolean(data.subscribed),
-            subscription_tier: data.subscription_tier,
-            subscription_end: data.subscription_end
+            subscribed: data.subscribed ?? false,
+            subscription_tier: data.subscription_tier ?? null,
+            subscription_end: data.subscription_end ?? null
           };
           
           setSubscription(subscriptionData);
           
-          await checkSubscription();
+          await authCheckSubscription();
         }
       } catch (error: any) {
         console.error('Error checking subscription:', error);
