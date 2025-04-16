@@ -16,10 +16,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, Info, Loader2, Lock, Mail, Shield } from 'lucide-react';
+import { AlertCircle, Info, Loader2, Lock, Mail } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
-import { createOrUpdateAdmin } from '@/services/authService';
+import { checkAdminStatus } from '@/services/authService';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -33,7 +33,6 @@ const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [debugSessionInfo, setDebugSessionInfo] = useState<any>(null);
@@ -64,10 +63,6 @@ const Login = () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       console.log("Current session before login:", sessionData);
       
-      if (data.email === 'admin@motocontrole.com') {
-        console.log("Debug: Admin login attempt");
-      }
-      
       // Attempt login
       const response = await login(data.email, data.password);
       console.log("Login response:", response);
@@ -81,39 +76,9 @@ const Login = () => {
       console.error('Login error:', error);
       let errorMessage = 'Ocorreu um erro durante o login. Por favor, tente novamente.';
       
-      // Debug information
-      if (data.email === 'admin@motocontrole.com') {
-        try {
-          // Verificar se o admin existe na tabela 'subscribers'
-          const { data: adminUser, error: adminError } = await supabase
-            .from('subscribers')
-            .select('*')
-            .eq('email', 'admin@motocontrole.com')
-            .eq('role', 'admin')
-            .single();
-          
-          if (adminError) {
-            console.error("Admin user check error:", adminError);
-          } else {
-            console.log("Admin user exists in subscribers:", adminUser);
-            if (adminUser && adminUser.user_id) {
-              const { data: userData, error: userError } = await supabase.auth.admin.getUserById(adminUser.user_id);
-              if (userError) {
-                console.error("Error getting admin user details:", userError);
-              } else {
-                console.log("Admin user details:", userData);
-                setDebugSessionInfo(userData);
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Admin user verification error:", e);
-        }
-      }
-      
       // Handle specific error messages
       if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = 'Email ou senha incorretos. Para admin, use admin@motocontrole.com e Admin@123';
+        errorMessage = 'Email ou senha incorretos. Verifique suas credenciais.';
       } else if (error.message?.includes('Email not confirmed')) {
         errorMessage = 'Email não confirmado. Por favor, verifique sua caixa de entrada para confirmar seu email.';
       } else if (error.message?.includes('network')) {
@@ -128,83 +93,6 @@ const Login = () => {
       });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Função para login de administrador direto
-  const handleAdminLogin = async () => {
-    try {
-      setLoginError(null);
-      setIsSubmitting(true);
-      
-      await login('admin@motocontrole.com', 'Admin@123');
-      
-      toast({
-        title: "Login de administrador bem-sucedido!",
-        description: "Bem-vindo de volta, Administrador!",
-      });
-    } catch (error: any) {
-      console.error('Admin login error:', error);
-      
-      let errorMessage = 'Falha no login de administrador';
-      
-      if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = 'Credenciais inválidas. O usuário administrador pode não existir.';
-        toast({
-          title: "Erro no login de administrador",
-          description: "Tentando criar o usuário administrador...",
-          variant: "destructive",
-        });
-        
-        // Tentar criar o administrador automaticamente
-        await handleCreateAdmin();
-      } else {
-        setLoginError(`Erro no login de administrador: ${error.message}`);
-        toast({
-          title: "Erro no login de administrador",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  // Função para criar administrador
-  const handleCreateAdmin = async () => {
-    try {
-      setIsCreatingAdmin(true);
-      
-      const result = await createOrUpdateAdmin();
-      console.log('Resultado da criação/atualização do admin:', result);
-      
-      if (result.success) {
-        toast({
-          title: "Administrador configurado",
-          description: "Usuário administrador criado ou atualizado com sucesso.",
-        });
-        
-        // Tentar fazer login novamente após criar o administrador
-        setTimeout(() => {
-          handleAdminLogin();
-        }, 1000);
-      } else {
-        toast({
-          title: "Erro ao configurar administrador",
-          description: result.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error creating admin:', error);
-      toast({
-        title: "Erro ao criar administrador",
-        description: error.message || 'Ocorreu um erro desconhecido',
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingAdmin(false);
     }
   };
   
@@ -313,34 +201,6 @@ const Login = () => {
           <p className="text-xs mt-1">A plataforma completa para controle financeiro e gerenciamento de veículos</p>
         </div>
         
-        <div className="mt-4 flex space-x-2 justify-center">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleAdminLogin}
-            disabled={isSubmitting}
-            className="flex items-center"
-          >
-            <Shield className="h-4 w-4 mr-1 text-blue-500" />
-            Entrar como Admin
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleCreateAdmin}
-            disabled={isCreatingAdmin}
-            className="flex items-center"
-          >
-            {isCreatingAdmin ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Shield className="h-4 w-4 mr-1 text-green-500" />
-            )}
-            {isCreatingAdmin ? 'Criando...' : 'Criar Admin'}
-          </Button>
-        </div>
-        
         <p className="mt-4">• Use um email válido e uma senha de pelo menos 8 caracteres</p>
         <p>• Se você não tem uma conta, crie uma na página de cadastro</p>
         <button 
@@ -356,11 +216,10 @@ const Login = () => {
             <p>isAuthenticated: {String(isAuthenticated)}</p>
             <p>isLoading: {String(authLoading)}</p>
             <p>isSubmitting: {String(isSubmitting)}</p>
-            <p>isCreatingAdmin: {String(isCreatingAdmin)}</p>
             <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'https://qewlxnjqojxprkodfdqf.supabase.co'}</p>
             {debugSessionInfo && (
               <div className="mt-2 border-t pt-2">
-                <p className="font-bold">Debug Admin User Info:</p>
+                <p className="font-bold">Debug Session Info:</p>
                 <pre>{JSON.stringify(debugSessionInfo, null, 2)}</pre>
               </div>
             )}

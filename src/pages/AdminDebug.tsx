@@ -15,7 +15,6 @@ const AdminDebug = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -52,43 +51,11 @@ const AdminDebug = () => {
     }
   };
   
-  const createAdminUser = async () => {
-    try {
-      setIsCreatingAdmin(true);
-      
-      // Criar usuário administrador diretamente via RPC
-      const { data, error } = await supabase
-        .rpc('create_admin_user', {
-          email: 'admin@motocontrole.com',
-          password: 'Admin@123',
-          full_name: 'Administrador do Sistema'
-        });
-        
-      if (error) throw error;
-      
-      toast({
-        title: "Administrador criado",
-        description: "Usuário admin@motocontrole.com criado com sucesso. Senha: Admin@123",
-      });
-      
-      fetchUsers();
-    } catch (error: any) {
-      console.error('Erro ao criar administrador:', error);
-      toast({
-        title: "Erro ao criar administrador",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsCreatingAdmin(false);
-    }
-  };
-  
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.isAdmin) {
       fetchUsers();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
   
   if (isLoading) {
     return (
@@ -155,10 +122,6 @@ const AdminDebug = () => {
                   <Button variant="outline" size="sm" onClick={fetchUsers} disabled={isLoadingUsers}>
                     {isLoadingUsers ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                     Atualizar
-                  </Button>
-                  <Button size="sm" onClick={createAdminUser} disabled={isCreatingAdmin}>
-                    {isCreatingAdmin ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Shield className="h-4 w-4 mr-2" />}
-                    Criar Admin
                   </Button>
                 </div>
               </div>

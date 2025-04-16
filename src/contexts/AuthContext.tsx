@@ -126,10 +126,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Attempting login for: ${email}`);
       setIsLoading(true);
       
-      if (email === 'admin@motocontrole.com') {
-        console.log('Tentativa de login como administrador');
-      }
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
