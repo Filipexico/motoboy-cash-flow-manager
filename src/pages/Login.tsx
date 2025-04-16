@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, Info, Loader2 } from 'lucide-react';
+import { AlertCircle, Info, Loader2, Lock, Mail } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const loginSchema = z.object({
@@ -54,17 +54,16 @@ const Login = () => {
     try {
       setLoginError(null);
       setIsSubmitting(true);
-      console.log("Tentando login com:", data.email);
+      console.log("Attempting login with:", data.email);
       
       // Attempt login
-      const result = await login(data.email, data.password);
-      console.log("Login result:", result);
-      
-      if (result?.error) {
-        throw new Error(result.error.message);
-      }
+      await login(data.email, data.password);
       
       // The navigation will happen automatically via the useEffect when isAuthenticated changes
+      toast({
+        title: "Login bem-sucedido!",
+        description: "Bem-vindo de volta ao MotoControle.",
+      });
     } catch (error: any) {
       console.error('Login error:', error);
       let errorMessage = 'Ocorreu um erro durante o login. Por favor, tente novamente.';
@@ -128,12 +127,16 @@ const Login = () => {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="seu@email.com" 
-                      type="email" 
-                      autoComplete="email"
-                      {...field} 
-                    />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input 
+                        placeholder="seu@email.com" 
+                        type="email" 
+                        autoComplete="email"
+                        className="pl-10"
+                        {...field} 
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -147,12 +150,16 @@ const Login = () => {
                 <FormItem>
                   <FormLabel>Senha</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="******" 
-                      type="password" 
-                      autoComplete="current-password"
-                      {...field} 
-                    />
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input 
+                        placeholder="********" 
+                        type="password" 
+                        autoComplete="current-password"
+                        className="pl-10"
+                        {...field} 
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -181,9 +188,13 @@ const Login = () => {
       </div>
       
       <div className="mt-8 text-center text-sm text-gray-500">
-        <p>Dicas para testar:</p>
-        <p>• Use um email válido e uma senha de pelo menos 6 caracteres.</p>
-        <p>• Se você não tem uma conta, crie uma na página de cadastro.</p>
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3 text-blue-700">
+          <p className="font-medium">Bem-vindo ao MotoControle</p>
+          <p className="text-xs mt-1">A plataforma completa para controle financeiro e gerenciamento de veículos</p>
+        </div>
+        
+        <p>• Use um email válido e uma senha de pelo menos 8 caracteres</p>
+        <p>• Se você não tem uma conta, crie uma na página de cadastro</p>
         <button 
           onClick={() => setShowDebugInfo(!showDebugInfo)}
           className="text-blue-500 hover:underline flex items-center mt-2 mx-auto"

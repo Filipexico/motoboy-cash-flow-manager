@@ -1,26 +1,66 @@
 
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
-import { loginUser, registerUser, logoutUser } from '@/services/authService';
+import { supabase, logAuthState } from '@/lib/supabase';
 import { checkSubscription } from '@/services/subscriptionService';
 import { useAuthState } from '@/hooks/useAuthState';
+import { RegisterFormValues } from '@/types/userProfile';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user, setUser, isLoading, setIsLoading, updateUserData } = useAuthState();
   const { toast } = useToast();
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     
     const checkUser = async () => {
       try {
-        console.log("Verificando sessão do usuário...");
+        console.log("AuthProvider: Checking user session...");
         if (isMounted) setIsLoading(true);
         
+        // Set up auth state change listener first
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log("Auth state changed:", event);
+          if (session) {
+            console.log("Session found in auth state change:", session.user.email);
+            if (isMounted) {
+              try {
+                // Fetch user profile
+                const { data: userProfile, error: profileError } = await supabase
+                  .from('user_profiles')
+                  .select('*')
+                  .eq('user_id', session.user.id)
+                  .maybeSingle();
+
+                if (profileError) {
+                  console.error("Error fetching user profile:", profileError);
+                }
+
+                // Update user data
+                await updateUserData(session.user, userProfile);
+                setIsLoading(false);
+              } catch (error) {
+                console.error("Error processing user data:", error);
+                if (isMounted) {
+                  await updateUserData(session.user);
+                  setIsLoading(false);
+                }
+              }
+            }
+          } else {
+            console.log("No session in auth state change");
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
+          }
+        });
+
+        // Then check for existing session
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -28,25 +68,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isMounted) {
             setUser(null);
             setIsLoading(false);
+            setInitialCheckDone(true);
           }
           return;
         }
 
-        console.log("Sessão:", session ? "Encontrada" : "Não encontrada");
+        console.log("Initial session check:", session ? "Session found" : "No session");
         
         if (session?.user && isMounted) {
-          console.log("Usuário autenticado:", session.user.email);
+          console.log("User authenticated:", session.user.email);
           
           try {
             // Fetch user profile
             const { data: userProfile, error: profileError } = await supabase
-              .from('subscribers')
+              .from('user_profiles')
               .select('*')
               .eq('user_id', session.user.id)
               .maybeSingle();
 
             if (profileError) {
-              console.error("Erro ao buscar perfil do usuário:", profileError);
+              console.error("Error fetching user profile:", profileError);
             }
 
             // Update user data in state
@@ -55,106 +96,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Check subscription status - but don't wait for it to complete to show the UI
             if (isMounted && user) {
               checkSubscription(user, setUser).catch(error => {
-                console.error("Erro ao verificar assinatura, continuando...", error);
+                console.error("Error checking subscription, continuing...", error);
               });
             }
           } catch (profileError) {
-            console.error("Erro ao processar dados do usuário:", profileError);
+            console.error("Error processing user data:", profileError);
             if (isMounted) {
               await updateUserData(session.user);
             }
           } finally {
-            if (isMounted) setIsLoading(false);
+            if (isMounted) {
+              setIsLoading(false);
+              setInitialCheckDone(true);
+            }
           }
         } else if (isMounted) {
-          console.log("Nenhum usuário autenticado");
+          console.log("No authenticated user");
           setUser(null);
           setIsLoading(false);
+          setInitialCheckDone(true);
         }
+
+        return () => {
+          authListener.subscription.unsubscribe();
+        };
       } catch (error) {
         console.error('Auth effect error:', error);
         if (isMounted) {
           setUser(null);
           setIsLoading(false);
+          setInitialCheckDone(true);
         }
       }
     };
 
-    // Safety timeout to prevent indefinite loading state - shortened to 3 seconds
+    // Safety timeout to prevent indefinite loading state
     const timeoutId = setTimeout(() => {
       if (isLoading && isMounted) {
-        console.log("Timeout de segurança acionado no AuthContext");
+        console.log("Safety timeout triggered in AuthContext");
         setIsLoading(false);
+        setInitialCheckDone(true);
       }
-    }, 3000);
+    }, 5000);
 
     checkUser();
-
-    // Setup auth state change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event);
-      if (event === 'SIGNED_OUT') {
-        console.log("Usuário desconectado");
-        if (isMounted) {
-          setUser(null);
-          setIsLoading(false);
-        }
-      } else if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
-        console.log("Usuário conectado:", session.user.email);
-        try {
-          // Fetch user profile after sign in
-          const { data: userProfile, error: profileError } = await supabase
-            .from('subscribers')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-
-          if (profileError) {
-            console.error("Erro ao buscar perfil após login:", profileError);
-          }
-
-          if (isMounted) {
-            await updateUserData(session.user, userProfile);
-            
-            // Check subscription after setting up user data - but don't block UI
-            if (user) {
-              checkSubscription(user, setUser).catch(error => {
-                console.error("Erro ao verificar assinatura após login:", error);
-              });
-            }
-            
-            setIsLoading(false);
-          }
-        } catch (error) {
-          console.error('Error setting up user data:', error);
-          if (isMounted) setIsLoading(false);
-        }
-      }
-    });
 
     return () => {
       isMounted = false;
       clearTimeout(timeoutId);
-      authListener.subscription.unsubscribe();
     };
   }, []);
 
-  // Login function using authService
+  // Login function
   const login = async (email: string, password: string) => {
     try {
+      console.log(`Attempting login for: ${email}`);
       setIsLoading(true);
-      const result = await loginUser(email, password);
       
-      // We don't need to set the user here as the auth state listener will handle it
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
+      if (error) throw error;
+      
+      console.log("Login successful");
       toast({
         title: 'Login realizado com sucesso',
         description: 'Bem-vindo de volta!',
       });
       
-      return result;
+      await logAuthState();
+      return data;
     } catch (error: any) {
-      console.error('Erro no login:', error);
+      console.error('Login error:', error);
       toast({
         title: 'Erro no login',
         description: error.message || 'Falha ao realizar login',
@@ -166,22 +181,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Register function using authService
-  const register = async (email: string, password: string, name?: string) => {
+  // Register function
+  const register = async (formValues: RegisterFormValues) => {
     try {
+      console.log(`Registering new user: ${formValues.email}`);
       setIsLoading(true);
-      const result = await registerUser(email, password, name);
       
-      // We don't need to set the user here as the auth state listener will handle it
+      // 1. Create the auth user
+      const { data, error } = await supabase.auth.signUp({
+        email: formValues.email,
+        password: formValues.password,
+        options: {
+          data: {
+            display_name: formValues.fullName,
+          },
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.user) {
+        console.log("User created, setting up profile:", data.user.id);
+        
+        // 2. Create the user profile with additional information
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: data.user.id,
+            full_name: formValues.fullName,
+            phone_number: formValues.phoneNumber,
+            address: formValues.address,
+          });
+        
+        if (profileError) {
+          console.error("Error creating user profile:", profileError);
+          toast({
+            title: 'Erro ao criar perfil',
+            description: 'Sua conta foi criada, mas houve um erro ao salvar informações adicionais.',
+            variant: 'destructive',
+          });
+        }
+        
+        // 3. Set up initial user data (expense categories, etc.)
+        try {
+          const { error: setupError } = await supabase.rpc('setup_new_user_data', {
+            user_id_param: data.user.id,
+            email_param: formValues.email
+          });
+          
+          if (setupError) {
+            console.error("Error setting up initial data:", setupError);
+          } else {
+            console.log("Initial user data set up successfully");
+          }
+        } catch (setupError) {
+          console.error("Error calling setup function:", setupError);
+        }
+      }
       
       toast({
         title: 'Cadastro realizado com sucesso',
         description: 'Bem-vindo ao MotoControle!',
       });
       
-      return result;
+      await logAuthState();
+      return data;
     } catch (error: any) {
-      console.error('Erro no registro:', error);
+      console.error('Registration error:', error);
       toast({
         title: 'Erro no cadastro',
         description: error.message || 'Falha ao criar conta',
@@ -196,17 +262,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Logout function
   const logout = async () => {
     try {
-      await logoutUser();
+      console.log("Logging out user");
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       setUser(null);
       toast({
         title: 'Logout realizado',
         description: 'Você saiu da sua conta',
       });
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+      console.log("Logout successful");
+    } catch (error: any) {
+      console.error('Logout error:', error);
       toast({
         title: 'Erro ao fazer logout',
-        description: 'Não foi possível sair da sua conta',
+        description: error.message || 'Não foi possível sair da sua conta',
         variant: 'destructive',
       });
     }
@@ -217,6 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !!user,
     isLoading,
     user,
+    initialCheckDone,
     checkSubscription: () => checkSubscription(user, setUser),
     logout,
     login,

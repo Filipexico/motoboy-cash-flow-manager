@@ -33,21 +33,22 @@ const queryClient = new QueryClient({
 });
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, initialCheckDone } = useAuth();
   const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoading) {
-        console.log("Tempo de carregamento excedido, redirecionando para login");
+        console.log("Loading timeout exceeded, redirecting to login");
         setTimeoutOccurred(true);
       }
-    }, 2000);
+    }, 5000);
     
     return () => clearTimeout(timer);
   }, [isLoading]);
   
-  if (isLoading && !timeoutOccurred) {
+  // Show loading state if auth is still initializing and timeout hasn't occurred
+  if ((isLoading && !timeoutOccurred) || (!initialCheckDone && !timeoutOccurred)) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
@@ -55,12 +56,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
             <h1 className="text-2xl font-bold text-blue-700">Moto<span className="text-blue-500">Controle</span></h1>
           </div>
           <p className="text-gray-600">Carregando os dados...</p>
+          <p className="text-gray-400 text-sm mt-2">Verificando seu login...</p>
         </div>
       </div>
     );
   }
   
-  if ((!isAuthenticated && timeoutOccurred) || (!isAuthenticated && !isLoading)) {
+  if ((!isAuthenticated && timeoutOccurred) || (!isAuthenticated && initialCheckDone)) {
+    console.log("User not authenticated, redirecting to login");
     return <Navigate to="/login" />;
   }
   
@@ -68,21 +71,21 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, initialCheckDone } = useAuth();
   const [timeoutOccurred, setTimeoutOccurred] = useState(false);
   
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoading) {
-        console.log("Tempo de carregamento excedido em AdminRoute, forçando renderização");
+        console.log("Loading timeout exceeded in AdminRoute, forcing rendering");
         setTimeoutOccurred(true);
       }
-    }, 2000);
+    }, 5000);
     
     return () => clearTimeout(timer);
   }, [isLoading]);
   
-  if (isLoading && !timeoutOccurred) {
+  if ((isLoading && !timeoutOccurred) || (!initialCheckDone && !timeoutOccurred)) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
@@ -95,7 +98,8 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  if (!user?.isAdmin && !timeoutOccurred) {
+  if (!user?.isAdmin && initialCheckDone) {
+    console.log("User is not admin, redirecting to dashboard");
     return <Navigate to="/dashboard" />;
   }
   
@@ -109,6 +113,7 @@ const AppRoutes = () => {
       <Route path="/landing" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/faq" element={<FAQ />} />
       
       <Route path="/dashboard" element={
         <ProtectedRoute>
@@ -170,14 +175,6 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <MainLayout>
             <Subscription />
-          </MainLayout>
-        </ProtectedRoute>
-      } />
-
-      <Route path="/faq" element={
-        <ProtectedRoute>
-          <MainLayout>
-            <FAQ />
           </MainLayout>
         </ProtectedRoute>
       } />
