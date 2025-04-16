@@ -54,7 +54,7 @@ const Register = () => {
   }, [isAuthenticated, navigate]);
 
   // Initialize the form
-  const form = useForm<RegisterFormValues>({
+  const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
@@ -67,7 +67,7 @@ const Register = () => {
         city: '',
         state: '',
         zipcode: '',
-        country: 'Brasil',
+        country: '',
       },
       lgpdConsent: false,
     },
