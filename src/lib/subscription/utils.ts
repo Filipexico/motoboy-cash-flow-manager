@@ -1,7 +1,4 @@
-
 import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
-import type { SubscriptionData } from './types';
 
 export const checkSubscriptionDatabase = async (
   userId: string, 
@@ -47,8 +44,14 @@ export const checkSubscriptionDatabase = async (
   }
 };
 
-export const simulateTestSubscription = async (userId: string, plan: 'premium' | 'enterprise') => {
-  if (!userId) return;
+export const simulateTestSubscription = async (userId: string, plan: 'premium' | 'enterprise'): Promise<SubscriptionData> => {
+  if (!userId) {
+    return {
+      subscribed: false,
+      subscription_tier: null,
+      subscription_end: null
+    };
+  }
   
   try {
     const endDate = new Date();
@@ -67,14 +70,17 @@ export const simulateTestSubscription = async (userId: string, plan: 'premium' |
       throw error;
     }
     
-    // Fix TypeScript error by explicitly typing the return value
     return {
       subscribed: true,
-      subscription_tier: plan as string, // Explicitly cast to string
-      subscription_end: endDate.toISOString() as string // Explicitly cast to string
+      subscription_tier: plan,
+      subscription_end: endDate.toISOString()
     };
   } catch (error) {
     console.error('Error simulating subscription:', error);
-    throw error;
+    return {
+      subscribed: false,
+      subscription_tier: null,
+      subscription_end: null
+    };
   }
 };
