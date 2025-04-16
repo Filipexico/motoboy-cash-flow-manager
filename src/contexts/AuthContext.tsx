@@ -41,6 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user && isMounted) {
           console.log("User authenticated:", session.user.email);
+          console.log("User metadata:", session.user.app_metadata);
+          console.log("User ID:", session.user.id);
           
           try {
             const updatedUser = await updateUserData(session.user);
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (session) {
             console.log("Session found in auth state change:", session.user.email);
+            console.log("User metadata in auth change:", session.user.app_metadata);
             if (isMounted) {
               try {
                 const updatedUser = await updateUserData(session.user);
@@ -123,6 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Attempting login for: ${email}`);
       setIsLoading(true);
       
+      if (email === 'admin@motocontrole.com') {
+        console.log('Tentativa de login como administrador');
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -130,7 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) throw error;
       
-      console.log("Login successful");
+      console.log("Login successful:", data);
+      console.log("User metadata:", data?.user?.app_metadata);
+      
       toast({
         title: 'Login realizado com sucesso',
         description: 'Bem-vindo de volta!',

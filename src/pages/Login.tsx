@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, Info, Loader2, Lock, Mail } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { supabase } from '@/lib/supabase';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -33,6 +34,7 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [debugSessionInfo, setDebugSessionInfo] = useState<any>(null);
   
   // Redirect if already authenticated
   useEffect(() => {
@@ -56,8 +58,17 @@ const Login = () => {
       setIsSubmitting(true);
       console.log("Attempting login with:", data.email);
       
+      // Log a bit more information for debug
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log("Current session before login:", sessionData);
+      
+      if (data.email === 'admin@motocontrole.com') {
+        console.log("Debug: Admin login attempt");
+      }
+      
       // Attempt login
-      await login(data.email, data.password);
+      const response = await login(data.email, data.password);
+      console.log("Login response:", response);
       
       // The navigation will happen automatically via the useEffect when isAuthenticated changes
       toast({
@@ -68,9 +79,24 @@ const Login = () => {
       console.error('Login error:', error);
       let errorMessage = 'Ocorreu um erro durante o login. Por favor, tente novamente.';
       
+      // Debug information
+      if (data.email === 'admin@motocontrole.com') {
+        try {
+          const { data: checkData, error: checkError } = await supabase.auth.admin.getUserByEmail(data.email);
+          if (checkError) {
+            console.error("Admin user check error:", checkError);
+          } else {
+            console.log("Admin user exists:", checkData);
+            setDebugSessionInfo(checkData);
+          }
+        } catch (e) {
+          console.error("Admin user verification error:", e);
+        }
+      }
+      
       // Handle specific error messages
       if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = 'Email ou senha incorretos.';
+        errorMessage = 'Email ou senha incorretos. Para admin, use admin@motocontrole.com e Admin@123';
       } else if (error.message?.includes('Email not confirmed')) {
         errorMessage = 'Email não confirmado. Por favor, verifique sua caixa de entrada para confirmar seu email.';
       } else if (error.message?.includes('network')) {
@@ -81,6 +107,31 @@ const Login = () => {
       toast({
         title: "Erro no login",
         description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Função para login de administrador direto (apenas para depuração)
+  const handleAdminLogin = async () => {
+    try {
+      setLoginError(null);
+      setIsSubmitting(true);
+      
+      await login('admin@motocontrole.com', 'Admin@123');
+      
+      toast({
+        title: "Login de administrador bem-sucedido!",
+        description: "Bem-vindo de volta, Administrador!",
+      });
+    } catch (error: any) {
+      console.error('Admin login error:', error);
+      setLoginError(`Erro no login de administrador: ${error.message}`);
+      toast({
+        title: "Erro no login de administrador",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -193,7 +244,18 @@ const Login = () => {
           <p className="text-xs mt-1">A plataforma completa para controle financeiro e gerenciamento de veículos</p>
         </div>
         
-        <p>• Use um email válido e uma senha de pelo menos 8 caracteres</p>
+        <div className="mt-4">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleAdminLogin}
+            className="mx-auto"
+          >
+            Entrar como Administrador (DEBUG)
+          </Button>
+        </div>
+        
+        <p className="mt-4">• Use um email válido e uma senha de pelo menos 8 caracteres</p>
         <p>• Se você não tem uma conta, crie uma na página de cadastro</p>
         <button 
           onClick={() => setShowDebugInfo(!showDebugInfo)}
@@ -209,6 +271,12 @@ const Login = () => {
             <p>isLoading: {String(authLoading)}</p>
             <p>isSubmitting: {String(isSubmitting)}</p>
             <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'https://qewlxnjqojxprkodfdqf.supabase.co'}</p>
+            {debugSessionInfo && (
+              <div className="mt-2 border-t pt-2">
+                <p className="font-bold">Debug Admin User Info:</p>
+                <pre>{JSON.stringify(debugSessionInfo, null, 2)}</pre>
+              </div>
+            )}
           </div>
         )}
       </div>
