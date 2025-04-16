@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +6,10 @@ import RegisterStepTwo from '@/components/auth/RegisterStepTwo';
 import RegisterLayout from '@/components/auth/RegisterLayout';
 import { RegisterFormValues } from '@/types/userProfile';
 import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { registerSchema } from '@/components/auth/RegisterStepOne';
+import { z } from 'zod';
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -16,6 +19,8 @@ const Register = () => {
   const { register, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -78,18 +83,38 @@ const Register = () => {
     };
   }, [registerTimer]);
 
+  const form = useForm<z.infer<typeof registerSchema>>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+      fullName: '',
+      phoneNumber: '',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        zipcode: '',
+        country: '',
+      },
+      lgpdConsent: false,
+    },
+  });
+
   return (
     <RegisterLayout step={step as 1 | 2} error={error}>
       {step === 1 ? (
         <RegisterStepOne 
-          onSubmit={handleStepOneSubmit} 
-          isLoading={isLoading} 
+          form={form} 
+          showPassword={showPassword}
+          showConfirmPassword={showConfirmPassword}
+          setShowPassword={setShowPassword}
+          setShowConfirmPassword={setShowConfirmPassword}
         />
       ) : (
         <RegisterStepTwo 
-          onSubmit={handleStepTwoSubmit} 
-          onBack={() => setStep(1)} 
-          isLoading={isLoading}
+          form={form}
         />
       )}
     </RegisterLayout>
