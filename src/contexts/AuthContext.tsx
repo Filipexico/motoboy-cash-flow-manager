@@ -195,13 +195,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("User created, setting up profile:", data.user.id);
         
         // 2. Create the user profile with additional information
+        // FIX: Using subscribers table instead of user_profiles
         const { error: profileError } = await supabase
-          .from('user_profiles')
+          .from('subscribers')
           .insert({
             user_id: data.user.id,
-            full_name: formValues.fullName,
-            phone_number: formValues.phoneNumber,
-            address: formValues.address,
+            email: formValues.email,
+            subscribed: false
           });
         
         if (profileError) {
