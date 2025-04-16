@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import PageHeader from '@/components/common/PageHeader';
@@ -24,6 +24,9 @@ const Subscription = () => {
   } = useSubscription();
   
   const { toast } = useToast();
+  const [lastChecked, setLastChecked] = useState<string>('Never');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   // Verificar e criar tabelas ao montar o componente
   useEffect(() => {
@@ -43,6 +46,51 @@ const Subscription = () => {
     
     setupTablesIfNeeded();
   }, []);
+
+  // Custom check subscription status with debug info
+  const handleCheckSubscription = async () => {
+    try {
+      setLastChecked(new Date().toLocaleTimeString());
+      
+      // Get session info for debugging
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      // Call the actual subscription check
+      await checkSubscriptionStatus();
+      
+      // Get debug info from edge function
+      try {
+        const { data, error } = await supabase.functions.invoke('check-subscription');
+        if (!error) {
+          setDebugInfo({
+            subscriptionData: data,
+            sessionInfo: {
+              hasSession: !!sessionData?.session,
+              userId: sessionData?.session?.user?.id,
+              userEmail: sessionData?.session?.user?.email,
+              tokenExpiry: sessionData?.session?.expires_at 
+                ? new Date(sessionData.session.expires_at * 1000).toLocaleString() 
+                : 'Unknown'
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        console.error('Error getting debug info:', error);
+        setDebugInfo({
+          error: error.message || 'Unknown error getting debug info',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleCheckSubscription:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao verificar a assinatura: ' + (error.message || 'Erro desconhecido'),
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Verificar se as edge functions do Stripe estão implantadas
   const [edgeFunctionsDeployed, setEdgeFunctionsDeployed] = useState(false);
@@ -72,24 +120,45 @@ const Subscription = () => {
         title="Assinatura"
         description="Escolha o plano ideal para suas necessidades"
       >
-        <Button 
-          variant="outline" 
-          onClick={checkSubscriptionStatus}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Verificando...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Verificar assinatura
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleCheckSubscription}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Verificando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Verificar assinatura
+              </>
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDebug(!showDebug)}
+          >
+            <Info className="h-4 w-4" />
+          </Button>
+        </div>
       </PageHeader>
+
+      {showDebug && debugInfo && (
+        <Alert className="mb-6 border-blue-400 bg-blue-50">
+          <div className="flex flex-col">
+            <h3 className="font-bold">Informações de Debug</h3>
+            <div className="text-xs mt-1 overflow-auto max-h-32">
+              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+            </div>
+            <p className="text-xs mt-2">Última verificação: {lastChecked}</p>
+          </div>
+        </Alert>
+      )}
 
       {!edgeFunctionsDeployed && (
         <Alert className="mb-6 border-amber-400 bg-amber-50">

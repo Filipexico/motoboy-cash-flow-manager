@@ -28,11 +28,13 @@ serve(async (req) => {
       reqBody = await req.json();
       logStep("Request body parsed", reqBody);
     } catch (e) {
+      logStep("Invalid request body", { error: e.message });
       throw new Error('Invalid request body: ' + e.message);
     }
     
     const { planType } = reqBody;
     if (!planType || (planType !== 'premium' && planType !== 'enterprise')) {
+      logStep("Invalid plan type", { planType });
       throw new Error('Invalid plan type. Must be "premium" or "enterprise".');
     }
 
@@ -40,22 +42,42 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+    logStep("Supabase client created");
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      logStep("No authorization header provided");
+      throw new Error("No authorization header provided");
+    }
     logStep("Authorization header found");
     
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
+    const { data, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError) {
+      logStep("Authentication error", { error: authError.message });
+      throw new Error("Authentication error: " + authError.message);
+    }
+    
     const user = data.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) {
+      logStep("User not authenticated or email not available");
+      throw new Error("User not authenticated or email not available");
+    }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // First create subscribers table if it doesn't exist
-    await supabaseClient.rpc('create_subscribers_if_not_exists');
-    logStep("Subscribers table created if it didn't exist");
+    try {
+      await supabaseClient.rpc('create_subscribers_if_not_exists');
+      logStep("Subscribers table created if it didn't exist");
+    } catch (error) {
+      logStep("Error creating subscribers table", { error: error.message });
+      // Continue anyway, the table might already exist
+    }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    logStep("Stripe key check", { exists: !!stripeKey });
+    
     if (!stripeKey) {
       logStep("STRIPE_SECRET_KEY is not set, simulating subscription");
       
@@ -63,16 +85,20 @@ serve(async (req) => {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
       
-      await supabaseClient.from("subscribers").upsert({
-        user_id: user.id,
-        email: user.email,
-        subscribed: true,
-        subscription_tier: planType,
-        subscription_end: endDate.toISOString(),
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
-      
-      logStep("Simulated subscription created", { userId: user.id, plan: planType });
+      try {
+        await supabaseClient.from("subscribers").upsert({
+          user_id: user.id,
+          email: user.email,
+          subscribed: true,
+          subscription_tier: planType,
+          subscription_end: endDate.toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+        
+        logStep("Simulated subscription created", { userId: user.id, plan: planType });
+      } catch (error) {
+        logStep("Error creating simulated subscription", { error: error.message });
+      }
       
       // Return a success response with simulated URL
       return new Response(JSON.stringify({ 
@@ -84,11 +110,44 @@ serve(async (req) => {
       });
     }
 
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: "2023-10-16",
-    });
-
     try {
+      const stripe = new Stripe(stripeKey, {
+        apiVersion: "2023-10-16",
+      });
+      logStep("Stripe client created");
+
+      // Check if API key is valid by making a simple request
+      try {
+        await stripe.customers.list({ limit: 1 });
+        logStep("Stripe API key is valid");
+      } catch (stripeError) {
+        logStep("Stripe API key is invalid", { error: stripeError.message });
+        
+        // Fall back to simulation
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 1);
+        
+        await supabaseClient.from("subscribers").upsert({
+          user_id: user.id,
+          email: user.email,
+          subscribed: true,
+          subscription_tier: planType,
+          subscription_end: endDate.toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+        
+        logStep("Created fallback subscription due to invalid Stripe key", { userId: user.id, plan: planType });
+        
+        return new Response(JSON.stringify({ 
+          url: `${req.headers.get("origin") || "https://motoboy-cash-flow-manager.lovable.app"}/subscription?success=true&simulated=true`,
+          simulated: true,
+          error: "Invalid Stripe API key"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
       let customerId;
       
@@ -169,8 +228,9 @@ serve(async (req) => {
       });
     }
   } catch (error) {
-    logStep("Error in create-checkout", { error: error.message });
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("Error in create-checkout", { error: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

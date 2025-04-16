@@ -29,34 +29,57 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    logStep("Supabase client created");
+
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      logStep("No authorization header provided");
+      throw new Error("No authorization header provided");
+    }
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError) {
+      logStep("Authentication error", { error: userError.message });
+      throw new Error(`Authentication error: ${userError.message}`);
+    }
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) {
+      logStep("User not authenticated or email not available");
+      throw new Error("User not authenticated or email not available");
+    }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // First create subscribers table if it doesn't exist
-    await supabaseClient.rpc('create_subscribers_if_not_exists');
-    logStep("Ensured subscribers table exists");
+    try {
+      await supabaseClient.rpc('create_subscribers_if_not_exists');
+      logStep("Ensured subscribers table exists");
+    } catch (error) {
+      logStep("Error ensuring subscribers table exists", { error });
+      // Continue anyway, the table might already exist
+    }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    logStep("Stripe key check", { exists: !!stripeKey });
+    
     if (!stripeKey) {
       logStep("STRIPE_SECRET_KEY is not set, returning unsubscribed state");
       // Create a record for this user to avoid future errors
-      await supabaseClient.from("subscribers").upsert({
-        email: user.email,
-        user_id: user.id,
-        stripe_customer_id: null,
-        subscribed: false,
-        subscription_tier: null,
-        subscription_end: null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+      try {
+        await supabaseClient.from("subscribers").upsert({
+          email: user.email,
+          user_id: user.id,
+          stripe_customer_id: null,
+          subscribed: false,
+          subscription_tier: null,
+          subscription_end: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+        logStep("Created unsubscribed record due to missing Stripe key");
+      } catch (error) {
+        logStep("Error creating unsubscribed record", { error });
+      }
       
       return new Response(JSON.stringify({ 
         subscribed: false, 
@@ -67,12 +90,28 @@ serve(async (req) => {
       });
     }
 
-    const stripe = new Stripe(stripeKey, {
-      apiVersion: "2023-10-16",
-    });
-
     // Try-catch blocks for each Stripe operation to provide better error handling
     try {
+      const stripe = new Stripe(stripeKey, {
+        apiVersion: "2023-10-16",
+      });
+      logStep("Stripe client created");
+
+      // Check if API key is valid by making a simple request
+      try {
+        await stripe.customers.list({ limit: 1 });
+        logStep("Stripe API key is valid");
+      } catch (stripeError) {
+        logStep("Stripe API key is invalid", { error: stripeError.message });
+        return new Response(JSON.stringify({ 
+          subscribed: false, 
+          error: "Invalid Stripe API key" 
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
       
       if (customers.data.length === 0) {
