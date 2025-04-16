@@ -28,41 +28,10 @@ export const registerUser = async (formValues: RegisterFormValues) => {
   console.log(`Tentativa de registro: ${formValues.email}`);
   
   try {
-    // Formatar o endereço adequadamente para o banco de dados
-    let addressObject: Record<string, string> = {
-      street: '',
-      city: '',
-      state: '',
-      zipcode: '',
-      country: 'Brasil'
-    };
+    // Garantir que o endereço seja um objeto adequado para JSONB
+    const addressObject = formatAddressToJSON(formValues.address);
     
-    if (typeof formValues.address === 'string') {
-      try {
-        const parsed = JSON.parse(formValues.address);
-        if (parsed && typeof parsed === 'object') {
-          addressObject = {
-            street: parsed.street || '',
-            city: parsed.city || '',
-            state: parsed.state || '',
-            zipcode: parsed.zipcode || '',
-            country: parsed.country || 'Brasil'
-          };
-        }
-      } catch (e) {
-        console.error('Endereço não é um JSON válido:', e);
-      }
-    } else if (formValues.address && typeof formValues.address === 'object') {
-      addressObject = {
-        street: formValues.address.street || '',
-        city: formValues.address.city || '',
-        state: formValues.address.state || '',
-        zipcode: formValues.address.zipcode || '',
-        country: formValues.address.country || 'Brasil'
-      };
-    }
-    
-    console.log('Endereço formatado para registro:', addressObject);
+    console.log('Formatted address for registration:', addressObject);
     
     // Registrar o usuário com metadados formatados corretamente
     const { data, error } = await supabase.auth.signUp({

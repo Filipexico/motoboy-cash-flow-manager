@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase';
 import { formatAddressToJSON } from '@/lib/utils';
 
@@ -41,11 +42,10 @@ export const setupNewUserData = async (userId: string, email: string) => {
     const userMetadata = userData?.user?.user_metadata || {};
     console.log('User metadata for profile creation:', userMetadata);
     
-    // Formatar o endereço corretamente para garantir que é um objeto válido
+    // Garantir que o endereço seja um objeto JSONB válido
     const addressData = formatAddressToJSON(userMetadata.address);
     
     console.log('Formatted address for profile:', addressData);
-    console.log('Address type:', typeof addressData);
     
     // 3. Verificar se o perfil já existe
     const { data: existingProfile } = await supabase
