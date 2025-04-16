@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -17,11 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, ChevronRight } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RegisterFormValues } from '@/types/userProfile';
+import { Checkbox } from '@/components/ui/checkbox';
 
-// Comprehensive registration schema with all the required fields
 const registerSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string()
@@ -39,6 +38,9 @@ const registerSchema = z.object({
     zipcode: z.string().min(1, 'CEP é obrigatório'),
     country: z.string().min(1, 'País é obrigatório'),
   }),
+  lgpdConsent: z.boolean().refine(value => value === true, {
+    message: 'Você precisa aceitar os termos da LGPD para continuar',
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'As senhas não coincidem',
   path: ['confirmPassword'],
@@ -51,8 +53,9 @@ const Register = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [registrationStep, setRegistrationStep] = useState<1 | 2>(1);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
@@ -68,18 +71,18 @@ const Register = () => {
       fullName: '',
       phoneNumber: '',
       address: {
-        street: '', // Initialize with empty string instead of undefined
-        city: '', // Initialize with empty string instead of undefined
-        state: '', // Initialize with empty string instead of undefined
-        zipcode: '', // Initialize with empty string instead of undefined
-        country: 'Brasil', // This was already properly initialized
+        street: '',
+        city: '',
+        state: '',
+        zipcode: '',
+        country: 'Brasil',
       },
+      lgpdConsent: false,
     },
   });
-  
+
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
     if (registrationStep === 1) {
-      // Move to step 2 if password validation passes
       setRegistrationStep(2);
       return;
     }
@@ -100,7 +103,6 @@ const Register = () => {
       
       await registerUser(formValues);
       
-      // Navigation will happen automatically via the useEffect when isAuthenticated changes
       toast({
         title: "Cadastro realizado com sucesso!",
         description: "Bem-vindo ao MotoControle. Você será redirecionado em instantes.",
@@ -125,7 +127,6 @@ const Register = () => {
         variant: "destructive",
       });
       
-      // If there's an error in step 2, go back to step 1
       if (registrationStep === 2) {
         setRegistrationStep(1);
       }
@@ -134,7 +135,6 @@ const Register = () => {
     }
   };
   
-  // Show loading indicator if auth is still initializing
   if (authLoading && !isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-4">
@@ -209,14 +209,23 @@ const Register = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Senha</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="********" 
-                          type="password" 
-                          autoComplete="new-password"
-                          {...field} 
-                        />
-                      </FormControl>
+                      <div className="relative">
+                        <FormControl>
+                          <Input 
+                            placeholder="********" 
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="new-password"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
                       <FormDescription className="text-xs">
                         A senha deve conter pelo menos 8 caracteres, incluindo letras maiúsculas, minúsculas e números.
                       </FormDescription>
@@ -231,14 +240,23 @@ const Register = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Confirme sua senha</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="********" 
-                          type="password" 
-                          autoComplete="new-password"
-                          {...field} 
-                        />
-                      </FormControl>
+                      <div className="relative">
+                        <FormControl>
+                          <Input 
+                            placeholder="********" 
+                            type={showConfirmPassword ? "text" : "password"}
+                            autoComplete="new-password"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -380,6 +398,32 @@ const Register = () => {
                     />
                   </div>
                 </div>
+                
+                <FormField
+                  control={form.control}
+                  name="lgpdConsent"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Consentimento LGPD
+                        </FormLabel>
+                        <FormDescription>
+                          Concordo com a coleta e processamento dos meus dados pessoais de acordo com a Lei Geral de Proteção de Dados (LGPD). 
+                          Entendo que meus dados serão utilizados apenas para fins específicos relacionados ao serviço e que posso solicitar 
+                          acesso, correção ou exclusão dos meus dados a qualquer momento.
+                        </FormDescription>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </>
             )}
             
@@ -405,7 +449,12 @@ const Register = () => {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processando...
                   </>
-                ) : registrationStep === 1 ? 'Continuar' : 'Finalizar Cadastro'}
+                ) : registrationStep === 1 ? (
+                  <>
+                    Continuar
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </>
+                ) : 'Finalizar Cadastro'}
               </Button>
             </div>
           </form>

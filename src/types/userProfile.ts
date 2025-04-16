@@ -1,3 +1,4 @@
+
 export interface UserProfile {
   id: string;
   user_id: string;
@@ -20,12 +21,13 @@ export interface RegisterFormValues {
   confirmPassword: string;
   fullName: string;
   phoneNumber: string;
+  lgpdConsent: boolean;
   address: {
-    street: string;  // Ensure this is a required string
-    city: string;    // Ensure this is a required string
-    state: string;   // Ensure this is a required string
-    zipcode: string; // Ensure this is a required string
-    country: string; // Ensure this is a required string
+    street: string;
+    city: string;
+    state: string;
+    zipcode: string;
+    country: string;
   };
 }
 
