@@ -68,11 +68,11 @@ const Register = () => {
       fullName: '',
       phoneNumber: '',
       address: {
-        street: '',
-        city: '',
-        state: '',
-        zipcode: '',
-        country: 'Brasil',
+        street: '', // Initialize with empty string instead of undefined
+        city: '', // Initialize with empty string instead of undefined
+        state: '', // Initialize with empty string instead of undefined
+        zipcode: '', // Initialize with empty string instead of undefined
+        country: 'Brasil', // This was already properly initialized
       },
     },
   });
