@@ -1,22 +1,16 @@
 
-import { supabase } from '@/lib/supabase';
 import { Expense } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import { expenses as mockExpenses } from '@/lib/data/expenses';
+
+// Variável para armazenar as despesas em memória durante a sessão
+let localExpenses: Expense[] = [...mockExpenses];
 
 // Carregar despesas do usuário atual
 export const loadUserExpenses = async (): Promise<Expense[]> => {
   try {
-    const { data: userExpenses, error } = await supabase
-      .from('expenses')
-      .select('*')
-      .order('date', { ascending: false });
-
-    if (error) {
-      console.error('Erro ao carregar despesas:', error);
-      return [];
-    }
-
-    return userExpenses || [];
+    // Como não podemos usar o Supabase para 'expenses', usamos dados locais
+    return localExpenses;
   } catch (error) {
     console.error('Erro ao buscar despesas:', error);
     return [];
@@ -32,18 +26,10 @@ export const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>): Pr
       createdAt: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('expenses')
-      .insert([newExpense])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao adicionar despesa:', error);
-      return null;
-    }
-
-    return data;
+    // Adicionar à nossa coleção local
+    localExpenses = [...localExpenses, newExpense];
+    
+    return newExpense;
   } catch (error) {
     console.error('Erro ao adicionar despesa:', error);
     return null;
@@ -53,20 +39,19 @@ export const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>): Pr
 // Atualizar uma despesa existente
 export const updateExpense = async (id: string, expense: Partial<Expense>): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from('expenses')
-      .update({
+    // Encontrar e atualizar a despesa no array local
+    const index = localExpenses.findIndex(item => item.id === id);
+    
+    if (index >= 0) {
+      localExpenses[index] = {
+        ...localExpenses[index],
         ...expense,
         updatedAt: new Date().toISOString()
-      })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Erro ao atualizar despesa:', error);
-      return false;
+      };
+      return true;
     }
-
-    return true;
+    
+    return false;
   } catch (error) {
     console.error('Erro ao atualizar despesa:', error);
     return false;
@@ -76,19 +61,24 @@ export const updateExpense = async (id: string, expense: Partial<Expense>): Prom
 // Excluir uma despesa
 export const deleteExpense = async (id: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Erro ao excluir despesa:', error);
-      return false;
-    }
-
-    return true;
+    // Filtra o array local removendo a despesa com o ID correspondente
+    const initialLength = localExpenses.length;
+    localExpenses = localExpenses.filter(expense => expense.id !== id);
+    
+    // Verifica se algo foi removido
+    return localExpenses.length < initialLength;
   } catch (error) {
     console.error('Erro ao excluir despesa:', error);
     return false;
   }
+};
+
+// Limpar todas as despesas (útil para novos usuários)
+export const clearAllExpenses = (): void => {
+  localExpenses = [];
+};
+
+// Redefinir para os dados mock (útil para demonstração)
+export const resetToMockData = (): void => {
+  localExpenses = [...mockExpenses];
 };
