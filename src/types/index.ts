@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   email: string;
@@ -20,6 +19,7 @@ export type Expense = {
   categoryId: string;
   vehicleId?: string;
   createdAt: string;
+  updatedAt?: string; // Added optional updatedAt property
 };
 
 export type ExpenseCategory = {
