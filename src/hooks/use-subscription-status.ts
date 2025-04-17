@@ -13,30 +13,35 @@ export const useSubscriptionStatus = () => {
   const [subscription, setSubscription] = useState<null | SubscriptionData>(null);
   
   const checkSubscriptionStatus = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('Usuário não autenticado, não é possível verificar assinatura');
+      return;
+    }
     
     try {
       setIsLoading(true);
-      console.log('Manually checking subscription status...');
+      console.log('Verificando status da assinatura para o usuário:', user.id);
       
       try {
-        // Use the Edge Function to check subscription status
+        // Usar a Edge Function para verificar o status da assinatura
+        console.log('Chamando função edge check-subscription...');
         const { data, error } = await supabase.functions.invoke<StripeResponse>('check-subscription');
         
         if (error) {
-          console.error('Error checking subscription:', error);
+          console.error('Erro ao verificar assinatura via Edge Function:', error);
           toast({
             title: 'Erro',
             description: 'Não foi possível verificar o status da sua assinatura: ' + error.message,
             variant: 'destructive',
           });
           
-          // Fallback to database check if Edge Function fails
+          // Fallback para verificação no banco de dados
+          console.log('Usando fallback para verificação no banco de dados...');
           await checkSubscriptionDatabase(user.id, setSubscription);
           return;
         }
         
-        console.log('Subscription check result:', data);
+        console.log('Resultado da verificação da assinatura:', data);
         
         if (data) {
           const subscriptionData: SubscriptionData = {
@@ -45,11 +50,18 @@ export const useSubscriptionStatus = () => {
             subscription_end: data.subscription_end ?? null
           };
           
+          console.log('Atualizando estado local da assinatura:', subscriptionData);
           setSubscription(subscriptionData);
+          
+          // Atualizar o estado global da assinatura
+          console.log('Atualizando estado global da assinatura...');
           await authCheckSubscription();
         }
       } catch (error: any) {
-        console.error('Error checking subscription:', error);
+        console.error('Erro ao verificar assinatura:', error);
+        
+        // Fallback para verificação no banco de dados
+        console.log('Usando fallback para verificação no banco de dados após exceção...');
         await checkSubscriptionDatabase(user.id, setSubscription);
         
         toast({
@@ -58,7 +70,7 @@ export const useSubscriptionStatus = () => {
         });
       }
     } catch (error) {
-      console.error('Error checking subscription:', error);
+      console.error('Erro ao verificar assinatura:', error);
       toast({
         title: 'Erro',
         description: 'Não foi possível verificar o status da sua assinatura.',

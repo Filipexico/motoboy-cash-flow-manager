@@ -21,23 +21,29 @@ export const useSubscription = () => {
     openCustomerPortal
   } = useSubscriptionManagement(checkSubscriptionStatus);
 
-  // Detect user changes to clear data
+  // Detectar mudanças no usuário para limpar dados
   useEffect(() => {
     if (user?.id !== lastUserId) {
       if (user?.id) {
+        console.log('ID do usuário mudou, verificando assinatura para:', user.id);
         setLastUserId(user.id);
         checkSubscriptionStatus();
+      } else {
+        console.log('Usuário não está mais autenticado, limpando dados de assinatura');
+        setLastUserId(null);
       }
     }
-  }, [user?.id, lastUserId]);
+  }, [user?.id, lastUserId, checkSubscriptionStatus]);
 
-  // Handle URL parameters after Stripe redirect
+  // Lidar com parâmetros de URL após redirecionamento do Stripe
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const success = params.get('success');
     const canceled = params.get('canceled');
     const sessionId = params.get('session_id');
     const simulated = params.get('simulated');
+    
+    console.log('Parâmetros de URL detectados:', { success, canceled, sessionId, simulated });
     
     if (success === 'true') {
       toast({
@@ -47,8 +53,20 @@ export const useSubscription = () => {
           : 'Sua assinatura foi ativada com sucesso!',
       });
       
+      // Limpar os parâmetros da URL
+      console.log('Limpando parâmetros da URL...');
       window.history.replaceState(null, '', '/subscription');
-      if (user) checkSubscriptionStatus();
+      
+      // Verificar a assinatura apenas se o usuário estiver autenticado
+      if (user) {
+        console.log('Usuário autenticado, verificando assinatura após sucesso');
+        // Pequeno atraso para garantir que o banco de dados foi atualizado
+        setTimeout(() => {
+          checkSubscriptionStatus();
+        }, 1000);
+      } else {
+        console.log('Usuário não está autenticado, não é possível verificar assinatura');
+      }
     } else if (canceled === 'true') {
       toast({
         title: 'Assinatura cancelada',
@@ -56,9 +74,11 @@ export const useSubscription = () => {
         variant: 'destructive',
       });
       
+      // Limpar os parâmetros da URL
+      console.log('Limpando parâmetros da URL após cancelamento...');
       window.history.replaceState(null, '', '/subscription');
     }
-  }, [user]);
+  }, [user, toast, checkSubscriptionStatus]);
 
   const isSubscribed = subscription?.subscribed || user?.isSubscribed || false;
   const subscriptionTier = subscription?.subscription_tier || user?.subscriptionTier || null;

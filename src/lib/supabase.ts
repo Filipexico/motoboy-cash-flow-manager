@@ -1,11 +1,14 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 
-// Re-export the supabase client from the integrations/supabase/client file
-// to ensure we use the same instance across the application
-export { supabase };
+// Importe o cliente diretamente do arquivo de integração
+// Isso garante que só teremos uma instância do GoTrueClient em toda aplicação
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 
-// Function to check session status
+// Re-exportar a instância única do cliente Supabase
+export const supabase = supabaseClient;
+
+// Função para verificar o status da sessão
 export const getSessionStatus = async () => {
   try {
     console.log('Verificando status da sessão...');
@@ -22,7 +25,7 @@ export const getSessionStatus = async () => {
   }
 };
 
-// Debug function to check auth state
+// Função para debug do estado de autenticação
 export const logAuthState = async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession();

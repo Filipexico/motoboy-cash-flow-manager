@@ -3,34 +3,76 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const Index = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading, initialCheckDone } = useAuth();
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [manualCheckPerformed, setManualCheckPerformed] = useState(false);
 
+  // Verificação manual do estado de autenticação como fallback
   useEffect(() => {
-    console.log("Index: Auth state -", 
-      isAuthenticated ? "Authenticated" : "Not authenticated", 
-      isLoading ? "Loading" : "Not loading",
-      initialCheckDone ? "Initial check done" : "Initial check pending"
+    const manualCheckAuth = async () => {
+      if (!manualCheckPerformed && isLoading && !initialCheckDone) {
+        try {
+          console.log("Index: Realizando verificação manual de autenticação...");
+          const { data } = await supabase.auth.getSession();
+          const hasSession = !!data.session;
+          
+          console.log("Index: Verificação manual completada, sessão encontrada:", hasSession);
+          
+          // Se o timeout ocorrer e tivermos informações de sessão, navegar adequadamente
+          if (hasSession) {
+            console.log("Index: Navegando para dashboard com base na verificação manual");
+            navigate('/dashboard');
+          } else {
+            console.log("Index: Navegando para landing com base na verificação manual");
+            navigate('/landing');
+          }
+          
+          setCheckingAuth(false);
+          setManualCheckPerformed(true);
+        } catch (error) {
+          console.error("Index: Erro na verificação manual:", error);
+        }
+      }
+    };
+    
+    // Definir um timeout maior para o caso do AuthContext demorar
+    const timeoutId = setTimeout(() => {
+      if (checkingAuth && !initialCheckDone) {
+        console.log("Index: Timeout da verificação normal, iniciando verificação manual");
+        manualCheckAuth();
+      }
+    }, 3000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isLoading, initialCheckDone, navigate, checkingAuth, manualCheckPerformed]);
+
+  // Verificação normal pelo AuthContext
+  useEffect(() => {
+    console.log("Index: Estado de autenticação -", 
+      isAuthenticated ? "Autenticado" : "Não autenticado", 
+      isLoading ? "Carregando" : "Não carregando",
+      initialCheckDone ? "Verificação inicial concluída" : "Verificação inicial pendente"
     );
     
-    // Add more informative logging for debugging
+    // Adicionar mais logs informativos para depuração
     if (isAuthenticated && initialCheckDone) {
-      console.log("Index: Auth check complete - User is authenticated, will redirect to dashboard");
+      console.log("Index: Verificação de autenticação concluída - Usuário autenticado, redirecionando para dashboard");
     } else if (!isAuthenticated && initialCheckDone) {
-      console.log("Index: Auth check complete - User is NOT authenticated, will redirect to landing");
+      console.log("Index: Verificação de autenticação concluída - Usuário NÃO autenticado, redirecionando para landing");
     }
     
-    // Only navigate after we've checked auth status
+    // Navegar apenas após verificar o status de autenticação
     if (!isLoading && initialCheckDone) {
       const timer = setTimeout(() => {
         if (isAuthenticated) {
-          console.log("Index: Navigating to dashboard");
+          console.log("Index: Navegando para dashboard");
           navigate('/dashboard');
         } else {
-          console.log("Index: Navigating to landing");
+          console.log("Index: Navegando para landing");
           navigate('/landing');
         }
         setCheckingAuth(false);

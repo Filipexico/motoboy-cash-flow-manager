@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*", // Update this to your domain in production
+  "Access-Control-Allow-Origin": "*", // Atualizar para o domínio em produção
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
@@ -21,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Function started");
+    logStep("Função iniciada");
     
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -29,43 +29,43 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    logStep("Supabase client created");
+    logStep("Cliente Supabase criado");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      logStep("No authorization header provided");
-      throw new Error("No authorization header provided");
+      logStep("Cabeçalho de autorização não fornecido");
+      throw new Error("Cabeçalho de autorização não fornecido");
     }
-    logStep("Authorization header found");
+    logStep("Cabeçalho de autorização encontrado");
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) {
-      logStep("Authentication error", { error: userError.message });
-      throw new Error(`Authentication error: ${userError.message}`);
+      logStep("Erro de autenticação", { error: userError.message });
+      throw new Error(`Erro de autenticação: ${userError.message}`);
     }
     const user = userData.user;
     if (!user?.email) {
-      logStep("User not authenticated or email not available");
-      throw new Error("User not authenticated or email not available");
+      logStep("Usuário não autenticado ou email não disponível");
+      throw new Error("Usuário não autenticado ou email não disponível");
     }
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    logStep("Usuário autenticado", { userId: user.id, email: user.email });
 
-    // First create subscribers table if it doesn't exist
+    // Primeiro criar tabela de assinantes se não existir
     try {
       await supabaseClient.rpc('create_subscribers_if_not_exists');
-      logStep("Ensured subscribers table exists");
+      logStep("Tabela de assinantes existente verificada");
     } catch (error) {
-      logStep("Error ensuring subscribers table exists", { error });
-      // Continue anyway, the table might already exist
+      logStep("Erro ao verificar tabela de assinantes", { error });
+      // Continuar mesmo assim, a tabela já pode existir
     }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    logStep("Stripe key check", { exists: !!stripeKey });
+    logStep("Verificação da chave Stripe", { exists: !!stripeKey });
     
     if (!stripeKey) {
-      logStep("STRIPE_SECRET_KEY is not set, returning unsubscribed state");
-      // Create a record for this user to avoid future errors
+      logStep("STRIPE_SECRET_KEY não está definida, retornando estado não assinado");
+      // Criar um registro para este usuário para evitar erros futuros
       try {
         await supabaseClient.from("subscribers").upsert({
           email: user.email,
@@ -76,36 +76,56 @@ serve(async (req) => {
           subscription_end: null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });
-        logStep("Created unsubscribed record due to missing Stripe key");
+        logStep("Registro não assinante criado devido à falta da chave Stripe");
       } catch (error) {
-        logStep("Error creating unsubscribed record", { error });
+        logStep("Erro ao criar registro não assinante", { error });
       }
       
       return new Response(JSON.stringify({ 
         subscribed: false, 
-        error: "Stripe key not configured" 
+        error: "Chave Stripe não configurada" 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    // Try-catch blocks for each Stripe operation to provide better error handling
+    // Blocos try-catch para cada operação Stripe para fornecer melhor tratamento de erros
     try {
       const stripe = new Stripe(stripeKey, {
         apiVersion: "2023-10-16",
       });
-      logStep("Stripe client created");
+      logStep("Cliente Stripe criado");
 
-      // Check if API key is valid by making a simple request
+      // Verificar se a chave API é válida fazendo uma solicitação simples
       try {
         await stripe.customers.list({ limit: 1 });
-        logStep("Stripe API key is valid");
+        logStep("Chave API do Stripe é válida");
       } catch (stripeError) {
-        logStep("Stripe API key is invalid", { error: stripeError.message });
+        logStep("Chave API do Stripe é inválida", { error: stripeError.message });
+        
+        // Fallback para verificação no banco de dados
+        const { data } = await supabaseClient
+          .from('subscribers')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data) {
+          return new Response(JSON.stringify({
+            subscribed: data.subscribed || false,
+            subscription_tier: data.subscription_tier || null,
+            subscription_end: data.subscription_end || null,
+            error: "Usando dados de fallback devido a erro na API do Stripe"
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+        
         return new Response(JSON.stringify({ 
           subscribed: false, 
-          error: "Invalid Stripe API key" 
+          error: "Chave API do Stripe inválida" 
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
@@ -115,7 +135,7 @@ serve(async (req) => {
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
       
       if (customers.data.length === 0) {
-        logStep("No customer found, updating unsubscribed state");
+        logStep("Nenhum cliente encontrado, atualizando estado não assinado");
         await supabaseClient.from("subscribers").upsert({
           email: user.email,
           user_id: user.id,
@@ -133,7 +153,7 @@ serve(async (req) => {
       }
 
       const customerId = customers.data[0].id;
-      logStep("Found Stripe customer", { customerId });
+      logStep("Cliente Stripe encontrado", { customerId });
 
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
@@ -148,31 +168,32 @@ serve(async (req) => {
       if (hasActiveSub) {
         const subscription = subscriptions.data[0];
         subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-        logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
+        logStep("Assinatura ativa encontrada", { subscriptionId: subscription.id, endDate: subscriptionEnd });
         
-        // Determine subscription tier from price
+        // Determinar nível de assinatura a partir do preço
         try {
           const priceId = subscription.items.data[0].price.id;
           const price = await stripe.prices.retrieve(priceId);
           const amount = price.unit_amount || 0;
           
-          if (amount <= 1500) {
+          if (amount <= 1990) {
             subscriptionTier = "premium";
           } else {
             subscriptionTier = "enterprise";
           }
           
-          logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
+          logStep("Nível de assinatura determinado", { priceId, amount, subscriptionTier });
         } catch (priceError) {
-          logStep("Error determining price tier", { error: priceError.message });
-          // Default to premium if we can't determine tier
+          logStep("Erro ao determinar nível de preço", { error: priceError.message });
+          // Padrão para premium se não pudermos determinar o nível
           subscriptionTier = "premium";
         }
       } else {
-        logStep("No active subscription found");
+        logStep("Nenhuma assinatura ativa encontrada");
       }
 
-      await supabaseClient.from("subscribers").upsert({
+      // Atualizar banco de dados com informações de assinatura
+      const updateResult = await supabaseClient.from("subscribers").upsert({
         email: user.email,
         user_id: user.id,
         stripe_customer_id: customerId,
@@ -182,7 +203,12 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
 
-      logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionTier });
+      if (updateResult.error) {
+        logStep("Erro ao atualizar assinatura no banco de dados", { error: updateResult.error });
+      } else {
+        logStep("Banco de dados atualizado com informações de assinatura", { subscribed: hasActiveSub, subscriptionTier });
+      }
+
       return new Response(JSON.stringify({
         subscribed: hasActiveSub,
         subscription_tier: subscriptionTier,
@@ -192,9 +218,9 @@ serve(async (req) => {
         status: 200,
       });
     } catch (stripeError) {
-      logStep("Stripe API error", { error: stripeError.message });
+      logStep("Erro na API do Stripe", { error: stripeError.message });
       
-      // Fallback to database check
+      // Fallback para verificação no banco de dados
       const { data } = await supabaseClient
         .from('subscribers')
         .select('*')
@@ -206,17 +232,17 @@ serve(async (req) => {
           subscribed: data.subscribed || false,
           subscription_tier: data.subscription_tier || null,
           subscription_end: data.subscription_end || null,
-          error: "Used fallback data due to Stripe API error"
+          error: "Usando dados de fallback devido a erro na API do Stripe"
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         });
       }
       
-      // Return a safe default if no data found
+      // Retornar um padrão seguro se nenhum dado for encontrado
       return new Response(JSON.stringify({ 
         subscribed: false,
-        error: "Stripe API error"
+        error: "Erro na API do Stripe"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -224,7 +250,7 @@ serve(async (req) => {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
+    logStep("ERRO em check-subscription", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
