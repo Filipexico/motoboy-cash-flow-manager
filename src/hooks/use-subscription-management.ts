@@ -17,7 +17,7 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
       console.log(`Creating checkout session for plan: ${plan}`);
       
       try {
-        const { data, error } = await supabase.functions.invoke<{ url: string }>('create-checkout', {
+        const { data, error } = await supabase.functions.invoke<{ url: string; simulated?: boolean }>('create-checkout', {
           body: { planType: plan }
         });
         
@@ -49,7 +49,17 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
         
         console.log('Checkout session created:', data);
         
+        if (data?.simulated) {
+          toast({
+            title: 'Assinatura simulada',
+            description: 'Modo de simulação ativado para testes de desenvolvimento.',
+          });
+          await checkSubscription();
+          return;
+        }
+        
         if (data?.url) {
+          console.log('Redirecionando para:', data.url);
           window.location.href = data.url;
         } else {
           throw new Error('No checkout URL returned');
@@ -87,7 +97,7 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
       console.log('Opening customer portal...');
       
       try {
-        const { data, error } = await supabase.functions.invoke<{ url: string }>('customer-portal');
+        const { data, error } = await supabase.functions.invoke<{ url: string; simulated?: boolean }>('customer-portal');
         
         if (error) {
           console.error('Error opening customer portal:', error);
@@ -102,7 +112,16 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
         
         console.log('Customer portal session created:', data);
         
+        if (data?.simulated) {
+          toast({
+            title: 'Ambiente de teste',
+            description: 'Portal de gerenciamento simulado para ambiente de teste.',
+          });
+          return;
+        }
+        
         if (data?.url) {
+          console.log('Redirecionando para portal do cliente:', data.url);
           window.location.href = data.url;
         } else {
           throw new Error('No portal URL returned');

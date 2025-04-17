@@ -25,6 +25,7 @@ import {
 const Expenses = () => {
   const [expenseList, setExpenseList] = useState<Expense[]>(expenses);
   const [categories] = useState<ExpenseCategory[]>(expenseCategories);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const { toast } = useToast();
   
   // Group expenses by month for display
@@ -57,20 +58,38 @@ const Expenses = () => {
   // Calculate total expenses
   const totalExpenses = expenseList.reduce((sum, expense) => sum + expense.amount, 0);
   
-  // Handle form submission
+  // Handle form submission for new expense
   const handleSubmit = (formData: Omit<Expense, 'id' | 'createdAt'>) => {
-    const newExpense: Expense = {
-      ...formData,
-      id: uuidv4(),
-      createdAt: new Date().toISOString()
-    };
-    
-    setExpenseList([...expenseList, newExpense]);
-    
-    toast({
-      title: 'Despesa adicionada',
-      description: 'A despesa foi adicionada com sucesso.',
-    });
+    if (editingExpense) {
+      // Update existing expense
+      const updatedExpenses = expenseList.map(expense => 
+        expense.id === editingExpense.id 
+          ? { ...expense, ...formData, updatedAt: new Date().toISOString() } 
+          : expense
+      );
+      
+      setExpenseList(updatedExpenses);
+      setEditingExpense(null);
+      
+      toast({
+        title: 'Despesa atualizada',
+        description: 'A despesa foi atualizada com sucesso.',
+      });
+    } else {
+      // Add new expense
+      const newExpense: Expense = {
+        ...formData,
+        id: uuidv4(),
+        createdAt: new Date().toISOString()
+      };
+      
+      setExpenseList([...expenseList, newExpense]);
+      
+      toast({
+        title: 'Despesa adicionada',
+        description: 'A despesa foi adicionada com sucesso.',
+      });
+    }
   };
   
   // Handle expense deletion
@@ -82,14 +101,31 @@ const Expenses = () => {
       description: 'A despesa foi excluída com sucesso.',
     });
   };
+
+  // Handle expense edit
+  const handleEdit = (id: string) => {
+    const expense = expenseList.find(expense => expense.id === id);
+    if (expense) {
+      setEditingExpense(expense);
+      document.getElementById('add-expense-trigger')?.click();
+    }
+  };
   
+  // Reset editing state when form is closed
+  const handleSheetClose = () => {
+    setEditingExpense(null);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader 
         title="Despesas" 
         description="Gerencie e acompanhe suas despesas"
         actionLabel="Nova Despesa"
-        onAction={() => document.getElementById('add-expense-trigger')?.click()}
+        onAction={() => {
+          setEditingExpense(null);
+          document.getElementById('add-expense-trigger')?.click();
+        }}
       />
       
       {/* Summary Card */}
@@ -119,6 +155,8 @@ const Expenses = () => {
               <ExpenseList 
                 expenses={groupedExpenses[month]} 
                 categories={categories}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
               />
             </div>
           ))}
@@ -158,16 +196,16 @@ const Expenses = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Add Expense Sheet */}
-      <Sheet>
+      {/* Add/Edit Expense Sheet */}
+      <Sheet onOpenChange={(open) => !open && handleSheetClose()}>
         <SheetTrigger asChild>
           <div id="add-expense-trigger" className="hidden">Open</div>
         </SheetTrigger>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>Nova Despesa</SheetTitle>
+            <SheetTitle>{editingExpense ? 'Editar Despesa' : 'Nova Despesa'}</SheetTitle>
             <SheetDescription>
-              Adicione uma nova despesa ao seu controle financeiro.
+              {editingExpense ? 'Modifique os detalhes da despesa.' : 'Adicione uma nova despesa ao seu controle financeiro.'}
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6">
@@ -175,6 +213,13 @@ const Expenses = () => {
               <ExpenseForm 
                 categories={categories} 
                 onSubmit={handleSubmit} 
+                defaultValues={editingExpense ? {
+                  amount: editingExpense.amount,
+                  date: new Date(editingExpense.date),
+                  description: editingExpense.description,
+                  categoryId: editingExpense.categoryId,
+                  vehicleId: editingExpense.vehicleId
+                } : undefined}
               />
             </SheetClose>
           </div>

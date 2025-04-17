@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscriptionStatus } from './use-subscription-status';
@@ -8,6 +8,7 @@ import { useSubscriptionManagement } from './use-subscription-management';
 export const useSubscription = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [lastUserId, setLastUserId] = useState<string | null>(null);
   const { 
     isLoading: statusLoading, 
     subscription, 
@@ -20,19 +21,33 @@ export const useSubscription = () => {
     openCustomerPortal
   } = useSubscriptionManagement(checkSubscriptionStatus);
 
+  // Detectar mudanças de usuário para limpar dados
+  useEffect(() => {
+    if (user?.id !== lastUserId) {
+      if (user?.id) {
+        setLastUserId(user.id);
+        checkSubscriptionStatus();
+      }
+    }
+  }, [user?.id, lastUserId]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const success = params.get('success');
     const canceled = params.get('canceled');
+    const sessionId = params.get('session_id');
+    const simulated = params.get('simulated');
     
     if (success === 'true') {
       toast({
         title: 'Assinatura ativada',
-        description: 'Sua assinatura foi ativada com sucesso!',
+        description: simulated === 'true' 
+          ? 'Assinatura simulada ativada com sucesso (ambiente de teste).' 
+          : 'Sua assinatura foi ativada com sucesso!',
       });
       
       window.history.replaceState(null, '', '/subscription');
-      checkSubscriptionStatus();
+      if (user) checkSubscriptionStatus();
     } else if (canceled === 'true') {
       toast({
         title: 'Assinatura cancelada',
@@ -41,12 +56,6 @@ export const useSubscription = () => {
       });
       
       window.history.replaceState(null, '', '/subscription');
-    }
-  }, []);
-  
-  useEffect(() => {
-    if (user) {
-      checkSubscriptionStatus();
     }
   }, [user]);
 

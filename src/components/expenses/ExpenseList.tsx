@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { MoreVertical } from 'lucide-react';
+import { Edit, MoreVertical, Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -15,6 +15,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Expense, ExpenseCategory } from '@/types';
 import { format } from 'date-fns';
@@ -24,9 +35,10 @@ interface ExpenseListProps {
   expenses: Expense[];
   categories: ExpenseCategory[];
   onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
 }
 
-const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, categories, onDelete }) => {
+const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, categories, onDelete, onEdit }) => {
   if (expenses.length === 0) {
     return (
       <div className="text-center py-10">
@@ -73,13 +85,39 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ expenses, categories, onDelet
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Editar</DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-destructive"
-                      onClick={() => onDelete && onDelete(expense.id)}
-                    >
-                      Excluir
-                    </DropdownMenuItem>
+                    {onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(expense.id)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                    )}
+                    {onDelete && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => onDelete(expense.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

@@ -68,12 +68,22 @@ export const registerUser = async (formValues: RegisterFormValues) => {
 
 export const logoutUser = async () => {
   console.log('Realizando logout');
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    console.error('Erro no logout:', error);
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Erro no logout:', error);
+      throw error;
+    }
+    console.log('Logout realizado com sucesso');
+    
+    // Limpar dados da sessão ao fazer logout
+    sessionStorage.clear();
+    localStorage.removeItem('supabase.auth.token');
+    
+  } catch (error) {
+    console.error('Erro ao tentar fazer logout:', error);
     throw error;
   }
-  console.log('Logout realizado com sucesso');
 };
 
 // Função para verificar o status do administrador

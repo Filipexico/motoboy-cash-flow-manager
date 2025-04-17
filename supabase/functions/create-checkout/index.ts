@@ -4,7 +4,7 @@ import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*", // Update this to your domain in production
+  "Access-Control-Allow-Origin": "*", 
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
@@ -102,7 +102,7 @@ serve(async (req) => {
       
       // Return a success response with simulated URL
       return new Response(JSON.stringify({ 
-        url: `https://example.com/simulated-checkout?plan=${planType}`,
+        url: `${req.headers.get("origin") || "https://motoboy-cash-flow-manager.lovable.app"}/subscription?success=true&simulated=true`,
         simulated: true
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -166,7 +166,7 @@ serve(async (req) => {
       }
 
       // Definir valores corretos para os planos
-      const priceAmount = planType === 'premium' ? 1500 : 9900; // R$15 para premium, R$99 para enterprise
+      const priceAmount = planType === 'premium' ? 1990 : 4990; // R$19.90 para premium, R$49.90 para enterprise
       const origin = req.headers.get("origin") || "https://motoboy-cash-flow-manager.lovable.app";
       
       const session = await stripe.checkout.sessions.create({
@@ -182,7 +182,7 @@ serve(async (req) => {
                   ? 'Acesso a todas as funcionalidades premium' 
                   : 'Acesso a todas as funcionalidades empresariais',
               },
-              unit_amount: priceAmount,  // 1500 = R$15,00 | 9900 = R$99,00
+              unit_amount: priceAmount,  // 1990 = R$19,90 | 4990 = R$49,90
               recurring: {
                 interval: 'month',
               },
