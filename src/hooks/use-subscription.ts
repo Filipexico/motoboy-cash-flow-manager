@@ -21,7 +21,7 @@ export const useSubscription = () => {
     openCustomerPortal
   } = useSubscriptionManagement(checkSubscriptionStatus);
 
-  // Detectar mudanças de usuário para limpar dados
+  // Detect user changes to clear data
   useEffect(() => {
     if (user?.id !== lastUserId) {
       if (user?.id) {
@@ -31,6 +31,7 @@ export const useSubscription = () => {
     }
   }, [user?.id, lastUserId]);
 
+  // Handle URL parameters after Stripe redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const success = params.get('success');

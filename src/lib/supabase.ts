@@ -1,11 +1,11 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Re-export a instância do Supabase do arquivo integrations/supabase/client
-// para garantir que usamos a mesma instância em todo o aplicativo
+// Re-export the supabase client from the integrations/supabase/client file
+// to ensure we use the same instance across the application
 export { supabase };
 
-// Função para verificar o status da sessão
+// Function to check session status
 export const getSessionStatus = async () => {
   try {
     console.log('Verificando status da sessão...');
@@ -22,7 +22,7 @@ export const getSessionStatus = async () => {
   }
 };
 
-// Função de debug para verificar o estado de autenticação
+// Debug function to check auth state
 export const logAuthState = async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession();

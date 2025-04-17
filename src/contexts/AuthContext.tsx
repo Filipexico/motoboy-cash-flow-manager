@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';  // Import from our centralized location
 import { User } from '@/types';
 import { RegisterFormValues } from '@/types/userProfile';
 import { useAuthState } from '@/hooks/useAuthState';
@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthProvider: Checking user session...");
         if (isMounted) setIsLoading(true);
         
-        // Primeiro, verificar sessão inicial
+        // First, check initial session
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setInitialCheckDone(true);
         }
         
-        // Configurar listener para mudanças de autenticação
+        // Set up listener for auth state changes
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log("Auth state changed:", event);
           
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Registering new user: ${formValues.email}`);
       setIsLoading(true);
       
-      // Garantir que o endereço seja um objeto JSON válido
+      // Ensure address is a valid JSON object
       const addressObject = formatAddressToJSON(formValues.address);
       console.log("Formatted address for registration:", addressObject);
       
@@ -185,15 +185,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           await setupNewUserData(data.user.id, formValues.email);
           
-          // Importante: Atualizar manualmente o estado do usuário após registro bem-sucedido
-          // para evitar problemas de redirecionamento
+          // Important: Manually update user state after successful registration
+          // to prevent redirection issues
           const updatedUser = await updateUserData(data.user);
           setUser(updatedUser);
           setInitialCheckDone(true);
           
         } catch (profileError) {
           console.error("Error setting up user profile:", profileError);
-          // Continue mesmo com erro no perfil
+          // Continue even with profile error
         }
       }
       

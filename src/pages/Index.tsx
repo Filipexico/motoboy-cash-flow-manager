@@ -16,7 +16,7 @@ const Index = () => {
       initialCheckDone ? "Initial check done" : "Initial check pending"
     );
     
-    // Adicionando um console.log mais informativo para depuração
+    // Add more informative logging for debugging
     if (isAuthenticated && initialCheckDone) {
       console.log("Index: Auth check complete - User is authenticated, will redirect to dashboard");
     } else if (!isAuthenticated && initialCheckDone) {

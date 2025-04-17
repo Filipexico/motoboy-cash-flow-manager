@@ -20,6 +20,7 @@ export const useSubscriptionStatus = () => {
       console.log('Manually checking subscription status...');
       
       try {
+        // Use the Edge Function to check subscription status
         const { data, error } = await supabase.functions.invoke<StripeResponse>('check-subscription');
         
         if (error) {
@@ -30,6 +31,7 @@ export const useSubscriptionStatus = () => {
             variant: 'destructive',
           });
           
+          // Fallback to database check if Edge Function fails
           await checkSubscriptionDatabase(user.id, setSubscription);
           return;
         }

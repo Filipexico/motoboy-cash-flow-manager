@@ -102,7 +102,6 @@ export const useSubscriptionManagement = (checkSubscription: () => Promise<void>
         if (error) {
           console.error('Error opening customer portal:', error);
           
-          // Show user-friendly message
           toast({
             title: 'Ambiente de teste',
             description: 'Portal do cliente simulado para ambiente de teste.',
