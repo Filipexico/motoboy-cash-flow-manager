@@ -19,18 +19,27 @@ const AdminPage = () => {
       if (error) throw error;
       
       const enhancedUsers = await Promise.all(users.map(async (user) => {
+        // Get subscription data
         const { data: subscriberData } = await supabase
           .from('subscribers')
-          .select('role, subscribed')
+          .select('subscribed')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
+        
+        // Get role data
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
         
         return {
           id: user.id,
           email: user.email,
           name: user.user_metadata?.full_name || user.email,
           createdAt: user.created_at,
-          isAdmin: user.app_metadata?.role === 'admin',
+          isAdmin: roleData?.role === 'admin',
           isSubscribed: subscriberData?.subscribed || false,
         };
       }));

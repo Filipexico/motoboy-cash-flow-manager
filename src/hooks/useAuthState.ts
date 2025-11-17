@@ -14,8 +14,9 @@ export const useAuthState = () => {
     }
 
     try {
-      console.log("Fetching subscriber data for user:", sessionUser.id);
-      // First, try to get user profile data from subscribers table
+      console.log("Fetching user data for:", sessionUser.id);
+      
+      // Get subscriber data
       const { data: subscriberData, error: subscriberError } = await supabase
         .from('subscribers')
         .select('*')
@@ -28,11 +29,25 @@ export const useAuthState = () => {
         console.error('Error fetching subscriber data:', subscriberError);
       }
 
+      // Get role data from user_roles table
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', sessionUser.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      console.log("Role data:", roleData);
+      
+      if (roleError && !roleError.message.includes('No rows found')) {
+        console.error('Error fetching role data:', roleError);
+      }
+
       // Create a new user object with the updated data
       const updatedUser: User = {
         id: sessionUser.id,
         email: sessionUser.email || '',
-        isAdmin: sessionUser.app_metadata?.role === 'admin',
+        isAdmin: roleData?.role === 'admin',
         isSubscribed: subscriberData?.subscribed || false,
         subscriptionTier: subscriberData?.subscription_tier || null,
         subscriptionEnd: subscriberData?.subscription_end || null,
@@ -51,7 +66,7 @@ export const useAuthState = () => {
       const updatedUser: User = {
         id: sessionUser.id,
         email: sessionUser.email || '',
-        isAdmin: sessionUser.app_metadata?.role === 'admin',
+        isAdmin: false, // Default to false if we can't check the database
         isSubscribed: false,
         subscriptionTier: null,
         subscriptionEnd: null,
