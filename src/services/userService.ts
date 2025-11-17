@@ -6,30 +6,9 @@ export const setupNewUserData = async (userId: string, email: string) => {
   try {
     console.log(`Setting up default data for user: ${email} (${userId})`);
     
-    // 1. Verificar se o registro de assinante já existe
-    const { data: existingSubscriber } = await supabase
-      .from('subscribers')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    if (!existingSubscriber) {
-      // Criar registro de assinante
-      const { error: subscriberError } = await supabase
-        .from('subscribers')
-        .insert({
-          user_id: userId,
-          email: email,
-          subscribed: false,
-          role: 'user'
-        });
-      
-      if (subscriberError) {
-        console.error('Error creating subscriber record:', subscriberError);
-      } else {
-        console.log('Subscriber record created successfully');
-      }
-    }
+    // Note: User profiles, roles, and subscribers are now created automatically 
+    // via the database trigger when a user signs up.
+    // This function is kept for backward compatibility but isn't needed anymore.
     
     // 2. Obter os metadados do usuário para o perfil
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -47,37 +26,7 @@ export const setupNewUserData = async (userId: string, email: string) => {
     
     console.log('Formatted address for profile:', addressData);
     
-    // 3. Verificar se o perfil já existe
-    const { data: existingProfile } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    if (!existingProfile) {
-      try {
-        console.log('Creating new user profile with address:', JSON.stringify(addressData));
-        
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            user_id: userId,
-            full_name: userMetadata.full_name || email.split('@')[0],
-            phone_number: userMetadata.phone_number || null,
-            address: addressData
-          });
-        
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-          return false;
-        } else {
-          console.log('User profile created successfully');
-        }
-      } catch (error) {
-        console.error('Error setting up user profile:', error);
-        return false;
-      }
-    }
+    // Profile creation is now handled by database trigger
     
     return true;
   } catch (error) {
@@ -89,9 +38,9 @@ export const setupNewUserData = async (userId: string, email: string) => {
 export const getUserProfile = async (userId: string) => {
   try {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('*')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .maybeSingle();
     
     if (error) throw error;
@@ -110,9 +59,9 @@ export const updateUserProfile = async (userId: string, profileData: any) => {
     }
     
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .update(profileData)
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
       .maybeSingle();
     
